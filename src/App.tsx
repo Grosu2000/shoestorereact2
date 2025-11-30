@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -13,6 +12,8 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { useCartStore } from './stores/cart-store';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import './App.css';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { OrderHistoryPage } from './pages/OrderHistoryPage';
 
 function App() {
   const cartItemCount = useCartStore((state) => state.cart.itemCount);
@@ -32,6 +33,9 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/product/:id" element={<ProductDetailPage />} />
             <Route path="*" element={<NotFoundPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/orders" element={<OrderHistoryPage />} />
+
           </Routes>
         </main>
         <Footer />

@@ -1,3 +1,8 @@
+export interface ProductSize {
+  size: string;
+  stock: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -8,7 +13,7 @@ export interface Product {
   description: string;
   category: string;
   brand: string;
-  sizes: string[];
+  sizes: ProductSize[]; 
   colors: string[];
   inStock: boolean;
   stockQuantity: number;
@@ -48,6 +53,26 @@ export interface Review {
 
 export interface ProductWithReviews extends Product {
   reviews: Review[];
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  items: CartItem[];
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  shippingAddress: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    postalCode: string;
+  };
+  paymentMethod: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type Page = 'home' | 'products' | 'cart' | 'login' | 'profile' | 'admin' | 'about';

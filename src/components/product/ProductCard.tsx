@@ -9,13 +9,17 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+  const [selectedSize, setSelectedSize] = useState(product.sizes[0].size);
   const [selectedColor, setSelectedColor] = useState(product.colors[0]);
   const addItem = useCartStore((state) => state.addItem);
 
   const handleAddToCart = () => {
     addItem(product, selectedSize, selectedColor);
   };
+
+  // Перевірка чи є доступні розміри
+  const availableSizes = product.sizes.filter(size => size.stock > 0);
+  const isAnySizeAvailable = availableSizes.length > 0;
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
@@ -68,10 +72,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               value={selectedSize}
               onChange={(e) => setSelectedSize(e.target.value)}
               className="ml-2 px-2 py-1 border border-gray-300 rounded text-sm"
+              disabled={!isAnySizeAvailable}
             >
-              {product.sizes.map((size) => (
-                <option key={size} value={size}>
-                  {size}
+              {availableSizes.map((sizeInfo) => (
+                <option key={sizeInfo.size} value={sizeInfo.size}>
+                  {sizeInfo.size} {sizeInfo.stock < 5 ? `(${sizeInfo.stock} шт.)` : ''}
                 </option>
               ))}
             </select>
@@ -93,12 +98,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
         </div>
 
+        <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+          <span>Доступно розмірів: {availableSizes.length}</span>
+          <span className={product.inStock && isAnySizeAvailable ? 'text-green-600' : 'text-red-600'}>
+            {product.inStock && isAnySizeAvailable ? 'В наявності' : 'Немає в наявності'}
+          </span>
+        </div>
+
         <Button
           onClick={handleAddToCart}
-          disabled={!product.inStock}
+          disabled={!product.inStock || !isAnySizeAvailable}
           className="w-full"
         >
-          {product.inStock ? "Додати до кошика" : "Немає в наявності"}
+          {product.inStock && isAnySizeAvailable ? 'Додати до кошика' : 'Немає в наявності'}
         </Button>
       </div>
     </div>

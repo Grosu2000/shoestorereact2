@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { mockProducts } from '../utils/constants';
-import type { Product } from '../types/product';
+import type { Product, ProductSize } from '../types/product';
 
 export const AdminPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -13,12 +13,14 @@ export const AdminPage: React.FC = () => {
     description: '',
     category: '',
     brand: '',
-    sizes: [],
+    sizes: [{ size: '', stock: 0 }],
     colors: [],
     stockQuantity: 0,
     material: '',
     country: ''
   });
+
+  const [sizeInput, setSizeInput] = useState('');
 
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +54,7 @@ export const AdminPage: React.FC = () => {
       description: '',
       category: '',
       brand: '',
-      sizes: [],
+      sizes: [{ size: '', stock: 0 }],
       colors: [],
       stockQuantity: 0,
       material: '',
@@ -87,13 +89,50 @@ export const AdminPage: React.FC = () => {
       description: '',
       category: '',
       brand: '',
-      sizes: [],
+      sizes: [{ size: '', stock: 0 }],
       colors: [],
       stockQuantity: 0,
       material: '',
       country: ''
     });
   };
+
+  const addSize = () => {
+    if (!sizeInput.trim()) return;
+    
+    const sizes = sizeInput.split(',').map(s => ({
+      size: s.trim(),
+      stock: 0
+    }));
+
+    setNewProduct(prev => ({
+      ...prev,
+      sizes: [...(prev.sizes || []), ...sizes]
+    }));
+    setSizeInput('');
+  };
+
+  const updateSizeStock = (index: number, stock: number) => {
+    const updatedSizes = [...(newProduct.sizes || [])];
+    updatedSizes[index] = { ...updatedSizes[index], stock };
+    
+    setNewProduct(prev => ({
+      ...prev,
+      sizes: updatedSizes
+    }));
+  };
+
+  const removeSize = (index: number) => {
+    const updatedSizes = [...(newProduct.sizes || [])];
+    updatedSizes.splice(index, 1);
+    
+    setNewProduct(prev => ({
+      ...prev,
+      sizes: updatedSizes
+    }));
+  };
+
+  const totalStock = (newProduct.sizes || []).reduce((sum, size) => sum + size.stock, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -122,13 +161,10 @@ export const AdminPage: React.FC = () => {
                   onChange={(e) => setNewProduct(prev => ({ ...prev, price: Number(e.target.value) }))}
                   required
                 />
-                <Input
-                  label="Кількість на складі"
-                  type="number"
-                  value={newProduct.stockQuantity || 0}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, stockQuantity: Number(e.target.value) }))}
-                  required
-                />
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-sm font-medium text-gray-700">Загальна кількість:</div>
+                  <div className="text-lg font-bold">{totalStock} шт.</div>
+                </div>
               </div>
 
               <Input
@@ -145,6 +181,46 @@ export const AdminPage: React.FC = () => {
                 required
               />
 
+              {/* Управління розмірами */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Розміри та запаси
+                </label>
+                <div className="space-y-2 mb-3">
+                  {(newProduct.sizes || []).map((sizeInfo, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="w-12 font-medium">{sizeInfo.size}</span>
+                      <Input
+                        type="number"
+                        value={sizeInfo.stock}
+                        onChange={(e) => updateSizeStock(index, Number(e.target.value))}
+                        className="flex-1"
+                        min="0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSize(index)}
+                        className="text-red-600 hover:text-red-800 p-1"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex gap-2">
+                  <Input
+                    value={sizeInput}
+                    onChange={(e) => setSizeInput(e.target.value)}
+                    placeholder="Додати розміри (через кому): 39, 40, 41"
+                    className="flex-1"
+                  />
+                  <Button type="button" onClick={addSize}>
+                    Додати
+                  </Button>
+                </div>
+              </div>
+
               <Input
                 label="Матеріал"
                 value={newProduct.material || ''}
@@ -158,18 +234,6 @@ export const AdminPage: React.FC = () => {
                 onChange={(e) => setNewProduct(prev => ({ ...prev, country: e.target.value }))}
                 required
               />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Розміри (через кому)</label>
-                <Input
-                  value={newProduct.sizes?.join(', ') || ''}
-                  onChange={(e) => setNewProduct(prev => ({ 
-                    ...prev, 
-                    sizes: e.target.value.split(',').map(s => s.trim()) 
-                  }))}
-                  placeholder="39, 40, 41, 42"
-                />
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Кольори (через кому)</label>
@@ -210,7 +274,7 @@ export const AdminPage: React.FC = () => {
                         description: '',
                         category: '',
                         brand: '',
-                        sizes: [],
+                        sizes: [{ size: '', stock: 0 }],
                         colors: [],
                         stockQuantity: 0,
                         material: '',
@@ -231,11 +295,11 @@ export const AdminPage: React.FC = () => {
             <div className="space-y-4 max-h-96 overflow-y-auto">
               {products.map(product => (
                 <div key={product.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="font-semibold">{product.name}</h3>
                       <p className="text-sm text-gray-600">{product.brand} • {product.category}</p>
-                      <p className="text-sm">{product.price} грн • {product.stockQuantity} шт.</p>
+                      <p className="text-sm">{product.price} грн</p>
                     </div>
                     <div className="flex gap-2">
                       <Button 
@@ -252,6 +316,24 @@ export const AdminPage: React.FC = () => {
                       >
                         Видалити
                       </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-sm">
+                    <div className="font-medium mb-1">Розміри та запаси:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {product.sizes.map(sizeInfo => (
+                        <span 
+                          key={sizeInfo.size}
+                          className={`px-2 py-1 rounded text-xs ${
+                            sizeInfo.stock > 0 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {sizeInfo.size}: {sizeInfo.stock} шт.
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
