@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { useAuthStore } from '../stores/auth-store';
 
 export const LoginPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,10 +13,65 @@ export const LoginPage: React.FC = () => {
     firstName: '',
     lastName: ''
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const navigate = useNavigate();
+  const { login, register, isLoading, error } = useAuthStore();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.email) {
+      newErrors.email = 'Email обов\'язковий';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Невірний формат email';
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Пароль обов\'язковий';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Пароль має бути мінімум 6 символів';
+    }
+
+    if (!isLogin) {
+      if (!formData.firstName) {
+        newErrors.firstName = 'Ім\'я обов\'язкове';
+      }
+
+      if (!formData.lastName) {
+        newErrors.lastName = 'Прізвище обов\'язкове';
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Паролі не співпадають';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form data:', formData);
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      if (isLogin) {
+        await login(formData.email, formData.password);
+      } else {
+        await register(
+          formData.email, 
+          formData.password, 
+          `${formData.firstName} ${formData.lastName}`
+        );
+      }
+      navigate('/');
+    } catch (error) {
+      console.error('Помилка авторизації:', error);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,6 +79,9 @@ export const LoginPage: React.FC = () => {
       ...prev,
       [e.target.name]: e.target.value
     }));
+    if (errors[e.target.name]) {
+      setErrors(prev => ({ ...prev, [e.target.name]: '' }));
+    }
   };
 
   return (
@@ -34,6 +94,12 @@ export const LoginPage: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {!isLogin && (
               <div className="grid grid-cols-2 gap-4">
@@ -44,6 +110,8 @@ export const LoginPage: React.FC = () => {
                   required
                   value={formData.firstName}
                   onChange={handleChange}
+                  error={errors.firstName}
+                  disabled={isLoading}
                 />
                 <Input
                   label="Прізвище"
@@ -52,6 +120,8 @@ export const LoginPage: React.FC = () => {
                   required
                   value={formData.lastName}
                   onChange={handleChange}
+                  error={errors.lastName}
+                  disabled={isLoading}
                 />
               </div>
             )}
@@ -63,6 +133,8 @@ export const LoginPage: React.FC = () => {
               required
               value={formData.email}
               onChange={handleChange}
+              error={errors.email}
+              disabled={isLoading}
             />
 
             <Input
@@ -72,6 +144,8 @@ export const LoginPage: React.FC = () => {
               required
               value={formData.password}
               onChange={handleChange}
+              error={errors.password}
+              disabled={isLoading}
             />
 
             {!isLogin && (
@@ -82,12 +156,18 @@ export const LoginPage: React.FC = () => {
                 required
                 value={formData.confirmPassword}
                 onChange={handleChange}
+                error={errors.confirmPassword}
+                disabled={isLoading}
               />
             )}
 
             <div>
-              <Button type="submit" className="w-full">
-                {isLogin ? 'Увійти' : 'Зареєструватися'}
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isLoading}
+              >
+                {isLoading ? 'Завантаження...' : isLogin ? 'Увійти' : 'Зареєструватися'}
               </Button>
             </div>
           </form>
@@ -109,6 +189,7 @@ export const LoginPage: React.FC = () => {
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-blue-600 hover:text-blue-500 font-medium"
+                disabled={isLoading}
               >
                 {isLogin ? 'Немає акаунта? Зареєструватися' : 'Вже є акаунт? Увійти'}
               </button>

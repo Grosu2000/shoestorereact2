@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../ui/Button";
+import { useAuthStore } from "../../stores/auth-store";
 
 interface HeaderProps {
   cartItemCount?: number;
@@ -8,12 +9,12 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      window.location.href = `/products?search=${encodeURIComponent(
-        searchQuery
-      )}`;
+      navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
       setSearchQuery("");
     }
   };
@@ -22,6 +23,11 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
     if (e.key === "Enter") {
       handleSearch();
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
   };
 
   return (
@@ -56,12 +62,14 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
             >
               Про нас
             </Link>
-            <Link
-              to="/admin"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-            >
-              Адмінка
-            </Link>
+            {user?.role === "admin" && (
+              <Link
+                to="/admin"
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+              >
+                Адмінка
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center space-x-4">
@@ -118,21 +126,40 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
               )}
             </Link>
 
-            <Link to="/login">
-              <Button variant="outline" size="sm">
-                Увійти
-              </Button>
-            </Link>
-            <Link to="/orders">
-              <Button variant="outline" size="sm">
-                Мої замовлення
-              </Button>
-            </Link>
-            <Link to="/profile">
-              <Button variant="outline" size="sm">
-                Профіль
-              </Button>
-            </Link>
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <div className="hidden sm:block">
+                  <span className="text-gray-700 text-sm">
+                    {user.name}
+                  </span>
+                </div>
+                <Link to="/profile">
+                  <Button variant="outline" size="sm">
+                    Профіль
+                  </Button>
+                </Link>
+                <Link to="/orders">
+                  <Button variant="outline" size="sm">
+                    Замовлення
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                >
+                  Вийти
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link to="/login">
+                  <Button variant="outline" size="sm">
+                    Увійти
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

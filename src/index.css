@@ -1,3 +1,471 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* ===== ТВОЯ ПОВНА ПАЛІТРА ===== */
+  --color-background: #F6F6F6;
+  --color-text: #4B4B4B;
+  --color-button: #B4C6D4;
+  --color-accent: #D8E2EB;
+  --color-success: #8BC6A7;
+  --color-error: #D97F7F;
+  --color-button-hover: #9DB3C4;
+  --color-button-active: #86A0B4;
+  --color-success-dark: #6BA085;
+  --color-error-dark: #C46666;
+  
+  /* ===== ШРИФТИ ===== */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  
+  /* ===== АНІМАЦІЇ ===== */
+  --animate-fade-in: fadeIn 0.5s ease-in-out;
+  --animate-slide-up: slideUp 0.3s ease-out;
+  --animate-slide-in: slideIn 0.3s ease-out;
+  --animate-pulse-slow: pulse 3s infinite;
+  
+  /* ===== ТІНІ ===== */
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --shadow-medium: 0 6px 25px rgba(0, 0, 0, 0.08);
+  --shadow-hard: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ===== ГЛОБАЛЬНІ СТИЛІ ===== */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+/* ===== КАСТОМНІ КОМПОНЕНТИ ===== */
+@layer components {
+  /* КНОПКИ */
+  .btn {
+    font-weight: 500;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+    outline: none;
+  }
+  
+  .btn:focus-visible {
+    outline: 2px solid var(--color-button);
+    outline-offset: 2px;
+  }
+  
+  .btn-primary {
+    background-color: var(--color-button);
+    color: var(--color-text);
+    padding: 0.75rem 1.5rem;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--color-button-hover);
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .btn-primary:active {
+    background-color: var(--color-button-active);
+  }
+  
+  .btn-secondary {
+    background-color: var(--color-accent);
+    color: var(--color-text);
+    border: 1px solid var(--color-button);
+    padding: 0.75rem 1.5rem;
+  }
+  
+  .btn-secondary:hover {
+    background-color: color-mix(in srgb, var(--color-button) 20%, transparent);
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .btn-success {
+    background-color: var(--color-success);
+    color: white;
+    padding: 0.75rem 1.5rem;
+  }
+  
+  .btn-success:hover {
+    background-color: var(--color-success-dark);
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .btn-error {
+    background-color: var(--color-error);
+    color: white;
+    padding: 0.75rem 1.5rem;
+  }
+  
+  .btn-error:hover {
+    background-color: var(--color-error-dark);
+    box-shadow: var(--shadow-medium);
+  }
+  
+  /* РОЗМІРИ КНОПОК */
+  .btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
+  
+  /* КАРТКИ ТОВАРІВ */
+  .product-card {
+    background: white;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-accent);
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+    transition: all 0.3s;
+    animation: var(--animate-fade-in);
+  }
+  
+  .product-card:hover {
+    box-shadow: var(--shadow-hard);
+    border-color: color-mix(in srgb, var(--color-button) 50%, transparent);
+    transform: translateY(-4px);
+  }
+  
+  .product-image-container {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-accent);
+  }
+  
+  .product-image {
+    width: 100%;
+    height: 16rem;
+    object-fit: cover;
+    transition: transform 0.5s;
+  }
+  
+  .product-image:hover {
+    transform: scale(1.1);
+  }
+  
+  /* БЕЙДЖИ */
+  .discount-badge {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background-color: var(--color-error);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    box-shadow: var(--shadow-soft);
+    animation: var(--animate-pulse-slow);
+  }
+  
+  .new-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    background-color: var(--color-success);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    box-shadow: var(--shadow-soft);
+  }
+  
+  .stock-badge {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background-color: var(--color-success);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+  }
+  
+  .out-of-stock-badge {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background-color: var(--color-error);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+  }
+  
+  /* ФОРМИ */
+  .input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: white;
+    border: 1px solid var(--color-accent);
+    border-radius: 0.5rem;
+    color: var(--color-text);
+    transition: all 0.2s;
+  }
+  
+  .input-field::placeholder {
+    color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  }
+  
+  .input-field:focus {
+    outline: none;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--color-button);
+  }
+  
+  .input-error {
+    border-color: var(--color-error);
+  }
+  
+  .input-error:focus {
+    box-shadow: 0 0 0 2px var(--color-error);
+  }
+  
+  .input-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: color-mix(in srgb, var(--color-text) 80%, transparent);
+    margin-bottom: 0.375rem;
+  }
+  
+  .error-message {
+    font-size: 0.875rem;
+    color: var(--color-error);
+    margin-top: 0.375rem;
+  }
+  
+  /* НАВІГАЦІЯ */
+  .nav-link {
+    color: var(--color-text);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+  }
+  
+  .nav-link:hover {
+    background-color: var(--color-accent);
+    color: color-mix(in srgb, var(--color-text) 90%, transparent);
+  }
+  
+  .nav-link-active {
+    background-color: var(--color-button);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+  
+  /* КОШИК */
+  .cart-item {
+    background-color: white;
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-accent);
+    box-shadow: var(--shadow-soft);
+    transition: all 0.3s;
+    animation: var(--animate-slide-up);
+  }
+  
+  .cart-item:hover {
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .cart-item-removing {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.3s;
+  }
+  
+  .quantity-control {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--color-accent);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    width: fit-content;
+  }
+  
+  .quantity-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-accent);
+    color: var(--color-text);
+    font-size: 1.125rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  
+  .quantity-btn:hover {
+    background-color: var(--color-button);
+  }
+  
+  .quantity-display {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    color: var(--color-text);
+    font-weight: 500;
+  }
+  
+  /* ЗАГОЛОВКИ */
+  .section-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-text);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--color-accent);
+  }
+  
+  .page-title {
+    font-size: 1.875rem;
+    font-weight: bold;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+  }
+  
+  .page-subtitle {
+    font-size: 1.125rem;
+    color: color-mix(in srgb, var(--color-text) 70%, transparent);
+    margin-bottom: 2rem;
+  }
+  
+  /* БЕЙДЖІ */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  
+  .badge-success {
+    background-color: color-mix(in srgb, var(--color-success) 20%, transparent);
+    color: var(--color-success-dark);
+  }
+  
+  .badge-error {
+    background-color: color-mix(in srgb, var(--color-error) 20%, transparent);
+    color: var(--color-error-dark);
+  }
+  
+  .badge-info {
+    background-color: var(--color-accent);
+    color: var(--color-text);
+  }
+  
+  /* УТИЛІТИ */
+  .container-padding {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .container-padding {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .container-padding {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+  
+  .glass-effect {
+    background-color: color-mix(in srgb, white 80%, transparent);
+    backdrop-filter: blur(8px);
+    border: 1px solid color-mix(in srgb, white 20%, transparent);
+  }
+  
+  .divider {
+    height: 1px;
+    background-color: var(--color-accent);
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* ===== КАСТОМНІ СКРОЛБАРИ ===== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-button);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-button-hover);
+}
+
+/* ===== SELECTION ===== */
+::selection {
+  background-color: var(--color-button);
+  color: var(--color-text);
+}
+
+::-moz-selection {
+  background-color: var(--color-button);
+  color: var(--color-text);
+}
+
+/* ===== FOCUS OUTLINE ===== */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-button);
+  outline-offset: 2px;
+}
