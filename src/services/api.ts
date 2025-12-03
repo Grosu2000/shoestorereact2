@@ -14,27 +14,29 @@ const getAuthToken = () => {
 };
 
 const handleResponse = async (response: Response) => {
-  // Спершу пробуємо отримати текст, щоб уникнути помилок парсингу
   const text = await response.text();
   let data;
   
   try {
     data = text ? JSON.parse(text) : {};
   } catch (e) {
-    console.error('Помилка парсингу JSON:', e, text);
-    throw new Error('Invalid JSON response from server');
+    console.error('Помилка парсингу JSON:', text);
+    throw new Error('Invalid JSON response');
   }
   
-  // Бекенд повертає {success, data, message} або {success, error, message}
   if (!response.ok) {
-    // Бекенд може повертати помилки по-різному
-    const errorMessage = data.error || data.message || `HTTP ${response.status}`;
-    throw new Error(errorMessage);
+    // Бекенд може повертати { success: false, error: '...' }
+    const errorMsg = data.error || data.message || `HTTP ${response.status}`;
+    throw new Error(errorMsg);
   }
   
-  // Якщо успішно - повертаємо data (всередині буде user та token)
-  // або сам об'єкт, якщо структура інша
-  return data.data || data;
+  // Якщо бекенд повертає { success: true, data: {...} }
+  if (data.success !== undefined) {
+    return data.data || data;
+  }
+  
+  // Якщо бекенд повертає просто дані
+  return data;
 };
 
 const api = {

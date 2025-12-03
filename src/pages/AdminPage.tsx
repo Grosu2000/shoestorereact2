@@ -50,19 +50,45 @@ if (!user || user.role.toUpperCase() !== 'ADMIN') {
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get<{ data: Product[] }>('/products');
-      setProducts(response.data || []);
-    } catch (error: any) {
-      console.error('Error fetching products:', error);
-      setError(error.message || 'Помилка завантаження товарів');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+  console.log('AdminPage: current products state:', products);
+}, [products]);
+
+   const fetchProducts = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    
+    console.log('Admin: fetching products...');
+    
+    const response = await api.get<Product[] | { data: Product[] }>('/products');
+    
+    console.log('Admin API response:', response);
+    console.log('Is array?', Array.isArray(response));
+    
+    // Варіант 1: якщо API повертає масив
+    if (Array.isArray(response)) {
+      console.log('Setting products (array):', response.length);
+      setProducts(response);
     }
-  };
+    // Варіант 2: якщо API повертає { data: [] }
+    else if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)) {
+      console.log('Setting products (response.data):', (response as any).data.length);
+      setProducts((response as any).data);
+    }
+    // Варіант 3: якщо щось інше
+    else {
+      console.log('Unknown format, setting empty array');
+      setProducts([]);
+    }
+    
+  } catch (error: any) {
+    console.error('Error fetching products:', error);
+    setError(error.message || 'Помилка завантаження товарів');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Додати товар
   const handleAddProduct = async (e: React.FormEvent) => {

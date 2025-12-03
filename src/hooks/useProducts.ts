@@ -1,39 +1,35 @@
 import { useQuery } from '@tanstack/react-query';
-import { useProductStore } from '../stores/product-store';
-import { mockProducts } from '../utils/constants';
+import { api } from '../services/api';
+import type { Product } from '../types/product';
 
-export const useProducts = () => {
-  const store = useProductStore();
-
-  // Використання React Query для отримання товарів
-  const { data: products = mockProducts, isLoading, error } = useQuery({
-    queryKey: ['products'],
+export const useProducts = (params?: {
+  category?: string;
+  brand?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  search?: string;
+}) => {
+  return useQuery({
+    queryKey: ['products', params],
     queryFn: async () => {
-      // Імітація API запиту
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return mockProducts;
+      const queryParams = new URLSearchParams();
+      
+      if (params?.category) queryParams.append('category', params.category);
+      if (params?.brand) queryParams.append('brand', params.brand);
+      if (params?.minPrice) queryParams.append('minPrice', params.minPrice.toString());
+      if (params?.maxPrice) queryParams.append('maxPrice', params.maxPrice.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      
+      const queryString = queryParams.toString();
+      const url = queryString ? `/products?${queryString}` : '/products';
+      
+      // API повертає просто масив товарів: Product[]
+      const products = await api.get<Product[]>(url);
+      
+      console.log('API products:', products); // Додайте цей лог
+      
+      return products; // Повертаємо просто масив
     },
-    staleTime: 1000 * 60 * 5, // 5 хвилин
+    staleTime: 1000 * 60 * 5,
   });
-
-  const getCategories = () => {
-    return ['Всі', ...new Set(products.map(p => p.category))];
-  };
-
-  const getBrands = () => {
-    return ['Всі', ...new Set(products.map(p => p.brand))];
-  };
-
-  return {
-    products,
-    filteredProducts: store.filteredProducts,
-    isLoading,
-    error: error?.message || null,
-    setCategory: store.setCategory,
-    setBrand: store.setBrand,
-    setPriceRange: store.setPriceRange,
-    getCategories,
-    getBrands,
-    getProductById: store.getProductById
-  };
 };

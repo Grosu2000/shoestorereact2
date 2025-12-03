@@ -4,7 +4,7 @@ import type { Cart, CartItem, Product } from '../types/product';
 
 interface CartStore {
   cart: Cart;
-  addItem: (product: Product, size: string, color: string) => void;
+addItem: (product: Product, size: string, color: string, quantity?: number) => void
   removeItem: (productId: string, size: string, color: string) => void;
   updateQuantity: (productId: string, size: string, color: string, quantity: number) => void;
   clearCart: () => void;
