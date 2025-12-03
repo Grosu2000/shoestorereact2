@@ -1,21 +1,16 @@
 import { Router } from 'express';
-import { adminMiddleware } from '../middleware/admin.middleware';
 import { 
-  getStats, 
-  getUsers, 
-  updateUserRole, 
-  getOrders 
-} from '../controllers/admin.controller';
+  getAllOrders, 
+  getOrderDetails, 
+  updateOrder, 
+  getOrderStats 
+} from '../controllers/admin.controller'; 
 
 const router = Router();
 
-router.use(adminMiddleware);
-
-router.get('/stats', getStats);
-
-router.get('/users', getUsers);
-router.patch('/users/:userId/role', updateUserRole);
-
-router.get('/orders', getOrders);
+router.get('/orders', getAllOrders);
+router.get('/orders/:id', getOrderDetails);
+router.put('/orders/:id', updateOrder);
+router.get('/stats', getOrderStats);
 
 export default router;
