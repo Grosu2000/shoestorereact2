@@ -6,25 +6,28 @@ export interface ProductSize {
 export interface Product {
   id: string;
   name: string;
+  slug: string;
   price: number;
   originalPrice?: number;
-  image: string;
-  images: string[];
   description: string;
   category: string;
   brand: string;
-  sizes: ProductSize[]; 
+  sizes: Array<{ size: string; stock: number }>;
   colors: string[];
-  inStock: boolean;
-  stockQuantity: number;
+  images: string[];
+  stock: number; // ✅ Додайте це поле
   rating: number;
   reviewCount: number;
   features: string[];
-  material: string;
-  releaseYear: number;
-  country: string;
+  material?: string;
+  releaseYear?: number;
+  country?: string;
+  inStock: boolean;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
+  // Опціональні поля для сумісності
+  image?: string; // для ProductCard
+  stockQuantity?: number; // для ProductCard
 }
 
 export interface CartItem {

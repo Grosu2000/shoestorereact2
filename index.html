@@ -1,13 +1,35 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>shoestorereact2</title>
+    <title>Shoe Store</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <script>
+      (function() {
+        const path = window.location.pathname;
+        const isSpaRoute = path !== '/' && !path.includes('.') && !path.startsWith('/api');
+        
+        if (isSpaRoute && !window.location.hash) {
+          sessionStorage.setItem('redirectPath', path);
+          window.location.href = '/';
+        }
+        
+        if (window.location.pathname === '/') {
+          const redirectPath = sessionStorage.getItem('redirectPath');
+          if (redirectPath) {
+            sessionStorage.removeItem('redirectPath');
+            setTimeout(() => {
+              window.history.replaceState({}, '', redirectPath);
+            }, 100);
+          }
+        }
+      })();
+    </script>
   </body>
 </html>

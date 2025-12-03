@@ -1,36 +1,68 @@
 import React from 'react';
-import type { Product } from '../../types/product';
 import { ProductCard } from './ProductCard';
+import { useProducts } from '../../hooks/useProducts';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 interface ProductGridProps {
-  products: Product[];
-  isLoading?: boolean;
+  category?: string;
+  brand?: string;
+  limit?: number;
+  search?: string;
 }
 
-export const ProductGrid: React.FC<ProductGridProps> = ({ products, isLoading = false }) => {
+export const ProductGrid: React.FC<ProductGridProps> = ({ 
+  category, 
+  brand, 
+  limit,
+  search
+}) => {
+  const { data: products, isLoading, error } = useProducts({ 
+    category, 
+    brand, 
+    search 
+  });
+
+  // Додамо логування
+  console.log('Products from hook:', products);
+  console.log('Products type:', typeof products);
+  console.log('Is array?', Array.isArray(products));
+
   if (isLoading) {
     return (
-      <div className="text-center py-12">
-        <LoadingSpinner size="lg" />
+      <div className="flex justify-center py-12">
+        <LoadingSpinner />
       </div>
     );
   }
 
-  if (products.length === 0) {
+  if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-text/70 text-lg">Товари не знайдено</p>
+      <div className="text-center py-12 text-red-600">
+        Помилка завантаження товарів: {error.message}
+      </div>
+    );
+  }
+
+  // data тепер це просто масив товарів
+  const productList = Array.isArray(products) ? products : [];
+  const displayedProducts = limit ? productList.slice(0, limit) : productList;
+
+  console.log('Product list to display:', displayedProducts);
+
+  if (displayedProducts.length === 0) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        Товари не знайдені
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {products.map((product) => (
-        <ProductCard
-          key={product.id}
-          product={product}
+      {displayedProducts.map((product) => (
+        <ProductCard 
+          key={product.id} 
+          product={product} 
         />
       ))}
     </div>

@@ -73,36 +73,74 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
+// Створити товар (ADMIN only)
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const productData = req.body;
-    
+    const {
+      name,
+      price,
+      description,
+      category,
+      brand,
+      sizes,
+      colors,
+      material,
+      country,
+      images
+    } = req.body;
+
     // Валідація
-    if (!productData.name || !productData.price || !productData.category) {
+    if (!name || !price || !category || !brand) {
       return res.status(400).json({
         success: false,
-        error: 'Required fields: name, price, category'
+        error: 'Missing required fields'
       });
     }
 
+    // Генеруємо slug з назви
+    const slug = name
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, '')
+      .replace(/\s+/g, '-');
+
+    // Створюємо товар
     const product = await prisma.product.create({
       data: {
-        ...productData,
-        slug: productData.name.toLowerCase().replace(/\s+/g, '-'),
-        stock: productData.sizes?.reduce((sum: number, size: any) => sum + (size.stock || 0), 0) || 0
+        name,
+        slug,
+        price: parseFloat(price),
+        description,
+        category,
+        brand,
+        sizes: sizes || [],
+        colors: colors || [],
+        material,
+        country,
+        images: images || ['/images/placeholder.jpg'],
+        stock: sizes?.reduce((sum: number, size: any) => sum + (size.stock || 0), 0) || 0,
+        inStock: sizes?.some((size: any) => size.stock > 0) || false
       }
     });
 
     res.status(201).json({
       success: true,
-      data: product
+      data: product,
+      message: 'Product created successfully'
     });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create product error:', error);
+    
+    // Перевірка на унікальність slug
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        success: false,
+        error: 'Product with this name already exists'
+      });
+    }
+
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: error.message || 'Failed to create product'
     });
   }
 };
@@ -147,11 +185,13 @@ export const searchProducts = async (req: Request, res: Response) => {
   }
 };
 
+// Оновити товар (ADMIN only)
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
 
+    // Перевірка існування товару
     const existingProduct = await prisma.product.findUnique({
       where: { id }
     });
@@ -163,45 +203,39 @@ export const updateProduct = async (req: Request, res: Response) => {
       });
     }
 
-    // Оновлюємо stock якщо змінили sizes
-    if (updateData.sizes) {
-      updateData.stock = updateData.sizes.reduce(
-        (sum: number, size: any) => sum + (size.stock || 0), 0
-      );
-    }
-
-    const updatedProduct = await prisma.product.update({
+    // Оновлюємо товар
+    const product = await prisma.product.update({
       where: { id },
-      data: updateData
+      data: {
+        ...updateData,
+        // Якщо оновлюємо sizes - перераховуємо stock
+        ...(updateData.sizes && {
+          stock: updateData.sizes.reduce((sum: number, size: any) => sum + (size.stock || 0), 0),
+          inStock: updateData.sizes.some((size: any) => size.stock > 0)
+        })
+      }
     });
 
     res.json({
       success: true,
-      data: updatedProduct,
+      data: product,
       message: 'Product updated successfully'
     });
-
   } catch (error: any) {
     console.error('Update product error:', error);
-    
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
-    }
-
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: error.message || 'Failed to update product'
     });
   }
 };
 
+// Видалити товар (ADMIN only)
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // Перевірка існування товару
     const existingProduct = await prisma.product.findUnique({
       where: { id }
     });
@@ -213,6 +247,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
       });
     }
 
+    // Видаляємо товар
     await prisma.product.delete({
       where: { id }
     });
@@ -221,20 +256,11 @@ export const deleteProduct = async (req: Request, res: Response) => {
       success: true,
       message: 'Product deleted successfully'
     });
-
   } catch (error: any) {
     console.error('Delete product error:', error);
-    
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
-    }
-
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: error.message || 'Failed to delete product'
     });
   }
 };
