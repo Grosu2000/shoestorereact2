@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
             >
               Про нас
             </Link>
-            {user?.role === "admin" && (
+            {user?.role === "ADMIN" && (
               <Link
                 to="/admin"
                 className={

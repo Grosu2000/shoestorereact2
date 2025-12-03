@@ -38,7 +38,7 @@ function App() {
   };
 
   const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role !== 'ADMIN') {
       return <Navigate to="/" />;
     }
     return children;
