@@ -174,7 +174,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   );
 };
 
-// Допоміжна функція для кольорів
 function getColorHex(colorName: string): string {
   const colorMap: Record<string, string> = {
     Чорний: "#000000",

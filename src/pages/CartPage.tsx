@@ -1,20 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useCartStore } from "../stores/cart-store";
 import { Button } from "../components/ui/Button";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export const CartPage: React.FC = () => {
   const { cart, updateQuantity, removeItem, clearCart } = useCartStore();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Імітація завантаження даних
+    const timer = setTimeout(() => setIsLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-16">
+            <LoadingSpinner size="lg" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (cart.items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-16">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            <h1 className="text-3xl font-bold text-text mb-4">
               Кошик порожній
             </h1>
-            <p className="text-gray-600 mb-8">
+            <p className="text-text/70 mb-8">
               Додайте товари до кошика, щоб зробити покупку
             </p>
             <Button
@@ -30,10 +50,10 @@ export const CartPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Кошик</h1>
+          <h1 className="text-3xl font-bold text-text">Кошик</h1>
           <Button variant="outline" onClick={clearCart}>
             Очистити кошик
           </Button>
@@ -52,14 +72,14 @@ export const CartPage: React.FC = () => {
                 </div>
 
                 <div className="flex-grow">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-text">
                     {item.product.name}
                   </h3>
-                  <p className="text-gray-600 text-sm mt-1">
+                  <p className="text-text/70 text-sm mt-1">
                     {item.product.brand}
                   </p>
 
-                  <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
+                  <div className="mt-2 flex flex-wrap gap-4 text-sm text-text/70">
                     <span>Розмір: {item.selectedSize}</span>
                     <span>Колір: {item.selectedColor}</span>
                     <span>Ціна: {item.product.price} грн</span>
@@ -101,7 +121,7 @@ export const CartPage: React.FC = () => {
                   </div>
 
                   <div className="text-right min-w-20">
-                    <div className="text-lg font-semibold text-gray-900">
+                    <div className="text-lg font-semibold text-text">
                       {item.product.price * item.quantity} грн
                     </div>
                   </div>
@@ -114,7 +134,7 @@ export const CartPage: React.FC = () => {
                         item.selectedColor
                       )
                     }
-                    className="text-red-600 hover:text-red-800 p-2"
+                    className="text-error hover:text-error-dark p-2"
                   >
                     <svg
                       className="w-5 h-5"
@@ -142,7 +162,7 @@ export const CartPage: React.FC = () => {
               <span>Всього товарів:</span>
               <span>{cart.itemCount} шт.</span>
             </div>
-            <div className="flex justify-between text-xl font-bold">
+            <div className="flex justify-between text-xl font-bold text-text">
               <span>Загальна сума:</span>
               <span>{cart.total} грн</span>
             </div>
