@@ -8,7 +8,9 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0]?.size || "");
+  const [selectedSize, setSelectedSize] = useState(
+    product.sizes[0]?.size || ""
+  );
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || "");
   const addItem = useCartStore((state) => state.addItem);
 
@@ -16,11 +18,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     addItem(product, selectedSize, selectedColor);
   };
 
-  const availableSizes = product.sizes.filter(size => size.stock > 0);
+  const availableSizes = product.sizes.filter((size) => size.stock > 0);
   const isAnySizeAvailable = availableSizes.length > 0;
-  const isNewProduct = new Date(product.createdAt).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 днів
-  const discountPercentage = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const isNewProduct =
+    new Date(product.createdAt).getTime() >
+    Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 днів
+  const discountPercentage = product.originalPrice
+    ? Math.round(
+        ((product.originalPrice - product.price) / product.originalPrice) * 100
+      )
     : 0;
 
   return (
@@ -33,22 +39,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             className="product-image"
           />
         </Link>
-        
+
         {/* Бейджи */}
         {discountPercentage > 0 && (
-          <span className="discount-badge">
-            -{discountPercentage}%
-          </span>
+          <span className="discount-badge">-{discountPercentage}%</span>
         )}
-        
-        {isNewProduct && (
-          <span className="new-badge">
-            NEW
-          </span>
-        )}
-        
-        <span className={product.inStock && isAnySizeAvailable ? 'stock-badge' : 'out-of-stock-badge'}>
-          {product.inStock && isAnySizeAvailable ? 'В наявності' : 'Немає'}
+
+        {isNewProduct && <span className="new-badge">NEW</span>}
+
+        <span
+          className={
+            product.inStock && isAnySizeAvailable
+              ? "stock-badge"
+              : "out-of-stock-badge"
+          }
+        >
+          {product.inStock && isAnySizeAvailable ? "В наявності" : "Немає"}
         </span>
       </div>
 
@@ -105,7 +111,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                       : "bg-white border-accent text-text/70 hover:border-button hover:text-text"
                   } ${sizeInfo.stock < 3 ? "relative" : ""}`}
                   disabled={sizeInfo.stock === 0}
-                  title={sizeInfo.stock < 3 ? `Залишилось: ${sizeInfo.stock} шт.` : ""}
+                  title={
+                    sizeInfo.stock < 3
+                      ? `Залишилось: ${sizeInfo.stock} шт.`
+                      : ""
+                  }
                 >
                   {sizeInfo.size}
                   {sizeInfo.stock < 3 && sizeInfo.stock > 0 && (
@@ -140,7 +150,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <span>Доступно розмірів: {availableSizes.length}</span>
           <span className="flex items-center">
             <span className="w-2 h-2 rounded-full bg-success mr-1.5"></span>
-            {product.inStock && isAnySizeAvailable ? 'Готово до відправки' : 'Під замовлення'}
+            {product.inStock && isAnySizeAvailable
+              ? "Готово до відправки"
+              : "Під замовлення"}
           </span>
         </div>
 
@@ -148,12 +160,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           onClick={handleAddToCart}
           disabled={!product.inStock || !isAnySizeAvailable}
           className={`w-full ${
-            product.inStock && isAnySizeAvailable 
-              ? 'btn-primary' 
-              : 'btn-secondary'
+            product.inStock && isAnySizeAvailable
+              ? "btn-primary"
+              : "btn-secondary"
           }`}
         >
-          {product.inStock && isAnySizeAvailable ? 'Додати до кошика' : 'Повідомити про наявність'}
+          {product.inStock && isAnySizeAvailable
+            ? "Додати до кошика"
+            : "Повідомити про наявність"}
         </button>
       </div>
     </div>
@@ -163,17 +177,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 // Допоміжна функція для кольорів
 function getColorHex(colorName: string): string {
   const colorMap: Record<string, string> = {
-    'Чорний': '#000000',
-    'Білий': '#FFFFFF',
-    'Сірий': '#808080',
-    'Синій': '#0000FF',
-    'Червоний': '#FF0000',
-    'Зелений': '#00FF00',
-    'Жовтий': '#FFFF00',
-    'Коричневий': '#A52A2A',
-    'Бежевий': '#F5F5DC',
-    'Рожевий': '#FFC0CB',
+    Чорний: "#000000",
+    Білий: "#FFFFFF",
+    Сірий: "#808080",
+    Синій: "#0000FF",
+    Червоний: "#FF0000",
+    Зелений: "#00FF00",
+    Жовтий: "#FFFF00",
+    Коричневий: "#A52A2A",
+    Бежевий: "#F5F5DC",
+    Рожевий: "#FFC0CB",
   };
-  
-  return colorMap[colorName] || '#D8E2EB';
+
+  return colorMap[colorName] || "#D8E2EB";
 }

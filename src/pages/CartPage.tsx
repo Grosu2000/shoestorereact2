@@ -41,11 +41,8 @@ export const CartPage: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           {cart.items.map((item) => (
-            <div
-              key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`}
-              className="border-b border-gray-200 last:border-b-0"
-            >
-              <div className="p-6 flex flex-col md:flex-row gap-4">
+            <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`}>
+              <div className="cart-item flex flex-col md:flex-row gap-4">
                 <div className="flex-shrink-0">
                   <img
                     src={item.product.image}
@@ -70,7 +67,7 @@ export const CartPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center border border-gray-300 rounded-lg">
+                  <div className="quantity-control">
                     <button
                       onClick={() =>
                         updateQuantity(
@@ -80,12 +77,12 @@ export const CartPage: React.FC = () => {
                           item.quantity - 1
                         )
                       }
-                      className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                      className="quantity-btn"
                       disabled={item.quantity <= 1}
                     >
                       -
                     </button>
-                    <span className="px-3 py-1 text-gray-900">
+                    <span className="quantity-display">
                       {item.quantity}
                     </span>
                     <button
@@ -97,7 +94,7 @@ export const CartPage: React.FC = () => {
                           item.quantity + 1
                         )
                       }
-                      className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                      className="quantity-btn"
                     >
                       +
                     </button>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../ui/Button";
 import { useAuthStore } from "../../stores/auth-store";
 
@@ -10,6 +10,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuthStore();
 
   const handleSearch = () => {
@@ -46,26 +47,34 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
           <nav className="hidden md:flex space-x-8">
             <Link
               to="/"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+              className={
+                `nav-link ${location.pathname === '/' ? 'nav-link-active' : ''}`
+              }
             >
               Головна
             </Link>
             <Link
               to="/products"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+              className={
+                `nav-link ${location.pathname.startsWith('/products') ? 'nav-link-active' : ''}`
+              }
             >
               Товари
             </Link>
             <Link
               to="/about"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+              className={
+                `nav-link ${location.pathname === '/about' ? 'nav-link-active' : ''}`
+              }
             >
               Про нас
             </Link>
             {user?.role === "admin" && (
               <Link
                 to="/admin"
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                className={
+                  `nav-link ${location.pathname.startsWith('/admin') ? 'nav-link-active' : ''}`
+                }
               >
                 Адмінка
               </Link>
@@ -80,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="input-field"
               />
               <button
                 onClick={handleSearch}
