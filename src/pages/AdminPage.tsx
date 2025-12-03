@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { mockProducts } from '../utils/constants';
-import type { Product, ProductSize } from '../types/product';
+import type { Product } from '../types/product';
 
 export const AdminPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(mockProducts);

@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 
 interface ReviewFormProps {
-  productId: string;
+  productId?: string;
   onSubmit: (review: { rating: number; comment: string }) => void;
 }
 
-export const ReviewForm: React.FC<ReviewFormProps> = ({ productId, onSubmit }) => {
+export const ReviewForm: React.FC<ReviewFormProps> = ({ onSubmit }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
