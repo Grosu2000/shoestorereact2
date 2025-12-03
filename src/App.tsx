@@ -16,15 +16,19 @@ import { ProductDetailPage } from './pages/ProductDetailPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderHistoryPage } from './pages/OrderHistoryPage';
 import { useAuthStore } from './stores/auth-store';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 function App() {
   const cartItemCount = useCartStore((state) => state.cart.itemCount);
   const { user, checkAuth } = useAuthStore();
 
-  useEffect(() => {
+  const stableCheckAuth = useCallback(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    stableCheckAuth();
+  }, [stableCheckAuth]);
 
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     if (!user) {
@@ -44,9 +48,9 @@ function App() {
     <ErrorBoundary>
       <ToastProvider>
         <Router>
-          <div className="App">
+          <div className="App min-h-screen flex flex-col">
             <Header cartItemCount={cartItemCount} />
-            <main>
+            <main className="flex-grow">
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/products" element={<ProductPage />} />
@@ -57,29 +61,41 @@ function App() {
                 <Route path="*" element={<NotFoundPage />} />
 
                 {/* Захищені маршрути */}
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
 
-                <Route path="/checkout" element={
-                  <ProtectedRoute>
-                    <CheckoutPage />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="/checkout"
+                  element={
+                    <ProtectedRoute>
+                      <CheckoutPage />
+                    </ProtectedRoute>
+                  }
+                />
 
-                <Route path="/orders" element={
-                  <ProtectedRoute>
-                    <OrderHistoryPage />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="/orders"
+                  element={
+                    <ProtectedRoute>
+                      <OrderHistoryPage />
+                    </ProtectedRoute>
+                  }
+                />
 
-                <Route path="/admin" element={
-                  <AdminRoute>
-                    <AdminPage />
-                  </AdminRoute>
-                } />
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <AdminPage />
+                    </AdminRoute>
+                  }
+                />
               </Routes>
             </main>
             <Footer />
