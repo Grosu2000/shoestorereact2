@@ -15,11 +15,10 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-// ✅ ОБНОВЛЕННЫЙ CORS - ДЕТАЛЬНАЯ НАСТРОЙКА
 const allowedOrigins = [
   'http://localhost:5173',
-  'http://localhost:4173',
   'https://shoestorereactv2.onrender.com',
+  'https://shoestore-frontend.onrender.com',
   'https://shoestore-frontend-relz.onrender.com',
   'https://shoestore-frontend-relz.onrender.com/',
   process.env.FRONTEND_URL || 'http://localhost:5173'
