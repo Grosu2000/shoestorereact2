@@ -1,35 +1,58 @@
+// backend/src/middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key-change-in-production';
+
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Отримати токен з заголовка
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
         success: false, 
-        error: 'No token provided' 
+        error: 'Токен не надано' 
       });
     }
 
     const token = authHeader.split(' ')[1];
     
-    // Перевірити токен
-    const decoded = jwt.verify(
-      token, 
-      process.env.JWT_SECRET || 'secret'
-    ) as any;
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Токен не надано' 
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     
-    // Додати користувача до запиту
-    (req as any).user = decoded;
-    
+    // Додаємо дані користувача до запиту
+    (req as any).user = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role
+    };
+
     next();
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Токен закінчився' 
+      });
+    }
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Недійсний токен' 
+      });
+    }
+    
     console.error('Auth middleware error:', error);
-    return res.status(401).json({ 
+    res.status(500).json({ 
       success: false, 
-      error: 'Invalid or expired token' 
+      error: 'Помилка автентифікації' 
     });
   }
 };

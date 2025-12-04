@@ -1,5 +1,5 @@
-import { BrowserRouter as Router } from 'react-router-dom';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastProvider } from "./contexts/ToastContext";
 import { Header } from "./components/layout/Header";
 import { Footer } from "./components/layout/Footer";
@@ -18,6 +18,8 @@ import { CheckoutPage } from "./pages/CheckoutPage";
 import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { useAuthStore } from "./stores/auth-store";
 import { useEffect, useCallback } from "react";
+import { OrderSuccessPage } from "./pages/OrderSuccessPage";
+
 function App() {
   const cartItemCount = useCartStore((state) => state.cart.itemCount);
   const { user, checkAuth } = useAuthStore();
@@ -52,18 +54,29 @@ function App() {
             <Header cartItemCount={cartItemCount} />
             <main className="flex-grow">
               <Routes>
-                <Route path="/test" element={
-  <div style={{padding: '50px', background: 'red', color: 'white'}}>
-    <h1>ТЕСТОВА СТОРІНКА</h1>
-    <p>Час: {new Date().toLocaleTimeString()}</p>
-  </div>
-} />
+                <Route
+                  path="/test"
+                  element={
+                    <div
+                      style={{
+                        padding: "50px",
+                        background: "red",
+                        color: "white",
+                      }}
+                    >
+                      <h1>ТЕСТОВА СТОРІНКА</h1>
+                      <p>Час: {new Date().toLocaleTimeString()}</p>
+                    </div>
+                  }
+                />
+
                 <Route path="/" element={<HomePage />} />
                 <Route path="/products" element={<ProductPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/product/:id" element={<ProductDetailPage />} />
+                <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
                 <Route path="*" element={<NotFoundPage />} />
 
                 {/* Захищені маршрути */}
