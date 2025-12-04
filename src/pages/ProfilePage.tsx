@@ -38,7 +38,7 @@ interface ProfileData extends User {
 }
 
 // Базовий API URL
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // API функції
 export const userApi = {
@@ -50,7 +50,7 @@ export const userApi = {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`${API_BASE}/auth/me`, {
+    const response = await fetch(`${API_BASE}/api/auth/me`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -74,7 +74,7 @@ export const userApi = {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`${API_BASE}/auth/profile`, {
+    const response = await fetch(`${API_BASE}/api/auth/profile`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -103,7 +103,7 @@ export const userApi = {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`${API_BASE}/auth/change-password`, {
+    const response = await fetch(`${API_BASE}/api/auth/change-password`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,

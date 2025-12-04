@@ -24,10 +24,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173'
 ].filter(Boolean);
 
-// Детальный CORS middleware
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Разрешить запросы без origin (серверные, curl и т.д.)
     if (!origin) {
       console.log('[CORS] Request without origin - allowing');
       return callback(null, true);
@@ -36,13 +34,10 @@ const corsOptions = {
     console.log(`[CORS] Checking origin: ${origin}`);
     console.log(`[CORS] Allowed origins: ${JSON.stringify(allowedOrigins)}`);
     
-    // Проверяем точное соответствие или вхождение
     const isAllowed = allowedOrigins.some(allowed => {
-      // Убираем слеши и протоколы для сравнения
       const cleanOrigin = origin.replace(/\/$/, '').toLowerCase();
       const cleanAllowed = allowed.replace(/\/$/, '').toLowerCase();
       
-      // Проверяем точное соответствие или вхождение домена
       return cleanOrigin === cleanAllowed || 
              cleanOrigin.includes(cleanAllowed.replace(/https?:\/\//, ''));
     });
@@ -75,13 +70,10 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
-// Применяем CORS ко всем маршрутам
 app.use(cors(corsOptions));
 
-// Специальный обработчик для OPTIONS (preflight)
 app.options('*', cors(corsOptions));
 
-// Добавляем CORS headers вручную для гарантии
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
@@ -101,7 +93,6 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Детальный логгер
 app.use((req, res, next) => {
   const start = Date.now();
   console.log(`\n=== REQUEST ===`);
@@ -121,7 +112,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Маршруты
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
@@ -129,7 +119,6 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-// Health check с детальной информацией
 app.get('/api/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -167,7 +156,6 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
   res.json({
     message: 'ShoeStore API',
@@ -177,7 +165,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// 404 с деталями
 app.use('*', (req, res) => {
   console.warn(`[404] Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ 
@@ -189,7 +176,6 @@ app.use('*', (req, res) => {
   });
 });
 
-// Глобальный обработчик ошибок
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('[GLOBAL ERROR]', {
     error: error.message,
@@ -199,7 +185,6 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
     origin: req.headers.origin
   });
   
-  // Если это CORS ошибка
   if (error.message.includes('CORS')) {
     return res.status(403).json({
       success: false,
@@ -218,7 +203,6 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
   });
 });
 
-// Запуск сервера
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ==========================================
@@ -235,7 +219,6 @@ app.listen(PORT, '0.0.0.0', () => {
   `);
 });
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Shutting down gracefully...');
   await prisma.$disconnect();

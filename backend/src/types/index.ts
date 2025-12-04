@@ -1,9 +1,11 @@
 // src/types/index.ts
+
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  password?: string; // Додаємо опціональне поле
+  password?: string; 
   role: 'user' | 'admin';
   createdAt: Date;
   updatedAt: Date;

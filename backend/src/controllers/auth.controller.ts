@@ -1,4 +1,4 @@
-// backend/src/controllers/auth.controller.ts
+
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key-change-in-production';
 
-// Функція для генерації JWT токена
+
 const generateToken = (userId: string, email: string, role: string) => {
   return jwt.sign(
     { userId, email, role },
@@ -20,7 +20,7 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, name } = req.body;
 
-    // Валідація
+    
     if (!email || !password || !name) {
       return res.status(400).json({ 
         success: false, 
@@ -28,7 +28,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    // Перевірка чи користувач вже існує
+    
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
@@ -40,10 +40,10 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    // Хешування пароля
+    
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Створення користувача
+    
     const user = await prisma.user.create({
       data: {
         email,
@@ -53,7 +53,7 @@ export const register = async (req: Request, res: Response) => {
       }
     });
 
-    // Генерація токена
+    
     const token = generateToken(user.id, user.email, user.role);
 
     res.status(201).json({
@@ -83,7 +83,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    // Валідація
+    
     if (!email || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -137,7 +137,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
-  // У JWT логаут робиться на клієнті (видалення токена)
+  
   res.json({ 
     success: true, 
     message: 'Успішний вихід з системи' 
@@ -146,7 +146,7 @@ export const logout = async (req: Request, res: Response) => {
 
 export const getProfile = async (req: Request, res: Response) => {
   try {
-    // authMiddleware додає user в req
+    
     const userId = (req as any).user?.userId;
     
     if (!userId) {
@@ -204,7 +204,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     const updateData: any = {};
     if (name) updateData.name = name;
     if (email) {
-      // Перевірити чи email не зайнятий іншим користувачем
+      
       const existingUser = await prisma.user.findFirst({
         where: {
           email,
@@ -268,7 +268,7 @@ export const changePassword = async (req: Request, res: Response) => {
       });
     }
 
-    // Отримати користувача з паролем
+    
     const user = await prisma.user.findUnique({
       where: { id: userId }
     });
@@ -280,7 +280,7 @@ export const changePassword = async (req: Request, res: Response) => {
       });
     }
 
-    // Перевірити поточний пароль
+    
     const validPassword = await bcrypt.compare(currentPassword, user.password);
     
     if (!validPassword) {
@@ -290,7 +290,7 @@ export const changePassword = async (req: Request, res: Response) => {
       });
     }
 
-    // Хешувати новий пароль
+    
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
     await prisma.user.update({
