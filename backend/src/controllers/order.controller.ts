@@ -17,7 +17,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
     const { items, shippingAddress, deliveryMethod, paymentMethod, total, notes } = req.body;
 
-    // Генерація номера замовлення
+    
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     const order = await prisma.order.create({
@@ -37,7 +37,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
     console.log('Order created successfully:', order.id);
 
-    // Очистити кошик
+    
     await prisma.cartItem.deleteMany({
       where: { userId }
     });
@@ -72,7 +72,7 @@ export const getUserOrders = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Парсимо JSON поля
+    
     const parsedOrders = orders.map(order => ({
       ...order,
       items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
@@ -111,7 +111,7 @@ export const getOrderById = async (req: Request, res: Response) => {
       });
     }
 
-    // Парсимо JSON поля
+    
     const parsedOrder = {
       ...order,
       items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,

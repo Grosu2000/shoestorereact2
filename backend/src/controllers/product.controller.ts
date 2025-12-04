@@ -73,7 +73,7 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
-// Створити товар (ADMIN only)
+
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const {
@@ -89,7 +89,7 @@ export const createProduct = async (req: Request, res: Response) => {
       images
     } = req.body;
 
-    // Валідація
+    
     if (!name || !price || !category || !brand) {
       return res.status(400).json({
         success: false,
@@ -97,13 +97,13 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     }
 
-    // Генеруємо slug з назви
+    
     const slug = name
       .toLowerCase()
       .replace(/[^\w\s]/gi, '')
       .replace(/\s+/g, '-');
 
-    // Створюємо товар
+    
     const product = await prisma.product.create({
       data: {
         name,
@@ -130,7 +130,7 @@ export const createProduct = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Create product error:', error);
     
-    // Перевірка на унікальність slug
+    
     if (error.code === 'P2002') {
       return res.status(400).json({
         success: false,
@@ -145,7 +145,7 @@ export const createProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Решту функцій (update, delete) додамо пізніше
+
 
 export const searchProducts = async (req: Request, res: Response) => {
   try {
@@ -185,13 +185,13 @@ export const searchProducts = async (req: Request, res: Response) => {
   }
 };
 
-// Оновити товар (ADMIN only)
+
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
 
-    // Перевірка існування товару
+    
     const existingProduct = await prisma.product.findUnique({
       where: { id }
     });
@@ -203,12 +203,12 @@ export const updateProduct = async (req: Request, res: Response) => {
       });
     }
 
-    // Оновлюємо товар
+    
     const product = await prisma.product.update({
       where: { id },
       data: {
         ...updateData,
-        // Якщо оновлюємо sizes - перераховуємо stock
+        
         ...(updateData.sizes && {
           stock: updateData.sizes.reduce((sum: number, size: any) => sum + (size.stock || 0), 0),
           inStock: updateData.sizes.some((size: any) => size.stock > 0)
@@ -230,12 +230,12 @@ export const updateProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Видалити товар (ADMIN only)
+
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Перевірка існування товару
+    
     const existingProduct = await prisma.product.findUnique({
       where: { id }
     });
@@ -247,7 +247,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
       });
     }
 
-    // Видаляємо товар
+    
     await prisma.product.delete({
       where: { id }
     });

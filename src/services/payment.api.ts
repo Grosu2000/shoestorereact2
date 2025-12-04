@@ -6,7 +6,7 @@ export interface LiqPayConfig {
 }
 
 export const paymentApi = {
-  // Створити платіж LiqPay
+  
   createLiqPayPayment: (orderId: string, amount: number, description: string) =>
     api.post<LiqPayConfig>('/payment/create-payment', {
       orderId,
@@ -14,7 +14,7 @@ export const paymentApi = {
       description,
     }),
   
-  // Перевірити статус платежу
+  
   checkPaymentStatus: (orderId: string) =>
     api.get<{ status: string }>(`/payment/check/${orderId}`),
 };

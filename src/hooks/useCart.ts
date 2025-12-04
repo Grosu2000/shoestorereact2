@@ -19,7 +19,7 @@ export const useCart = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Імітація мережевого запиту
+      
       await new Promise(resolve => setTimeout(resolve, 300));
       storeAddItem(product, size, color);
     } catch (err) {

@@ -12,7 +12,7 @@ export interface DashboardStats {
 }
 
 export const adminApi = {
-  // Статистика
+  
   getStats: () => 
     api.get<{ 
       stats: DashboardStats; 
@@ -20,14 +20,14 @@ export const adminApi = {
       lowStockProducts: any[] 
     }>('/admin/stats'),
   
-  // Замовлення
+  
   getAllOrders: () => 
     api.get<{ orders: any[] }>('/admin/orders'),
   
   updateOrderStatus: (id: string, status: string) => 
     api.put<{ order: any }>(`/admin/orders/${id}/status`, { status }),
   
-  // Товари
+  
   getAllProducts: () => 
     api.get<{ products: any[] }>('/admin/products'),
   

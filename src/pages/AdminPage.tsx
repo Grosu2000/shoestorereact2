@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 
 type TabType = "dashboard" | "orders" | "products" | "add-product";
 
-// Додаємо інтерфейс для форми
+
 interface ProductFormData {
   name: string;
   price: string;
@@ -22,7 +22,7 @@ interface ProductFormData {
   features?: string;
 }
 
-// Допоміжна функція для отримання тексту помилки
+
 const getErrorMessage = (error: any): string | undefined => {
   if (!error) return undefined;
   if (typeof error === 'string') return error;
@@ -37,10 +37,10 @@ export const AdminPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null); // ДОДАНО!
+  const [selectedProduct, setSelectedProduct] = useState<any>(null); 
   const { showToast } = useToast();
 
-  // Форма для додавання товару
+  
   const {
     register: registerProduct,
     handleSubmit: handleSubmitProduct,
@@ -99,7 +99,7 @@ export const AdminPage: React.FC = () => {
       
       const formData = new FormData();
 
-      // Додаємо текстові поля
+      
       Object.keys(data).forEach((key) => {
         const value = data[key as keyof ProductFormData];
         if (value !== undefined && value !== null && key !== "images") {
@@ -107,43 +107,43 @@ export const AdminPage: React.FC = () => {
         }
       });
 
-      // Додаємо розміри як JSON
+      
       if (sizes.length > 0) {
         formData.append("sizes", JSON.stringify(sizes));
       }
 
-      // Додаємо зображення
+      
       productImages.forEach((file) => {
         formData.append("images", file);
       });
       
-      // Дебаг: що відправляємо
+      
       console.log("FormData contents:");
       for (let [key, value] of formData.entries()) {
         console.log(key, value);
       }
 
-      // Визначаємо чи це редагування чи створення
+      
       if (selectedProduct) {
-        // Редагування існуючого товару
+        
         console.log("Updating product:", selectedProduct.id);
         await adminApi.updateProduct(selectedProduct.id, formData);
         showToast("Товар успішно оновлено", "success");
       } else {
-        // Створення нового товару
+        
         console.log("Creating new product");
         await adminApi.createProduct(formData);
         showToast("Товар успішно додано", "success");
       }
       
-      // Скидаємо стан
+      
       setShowAddProductModal(false);
       resetProduct();
       setProductImages([]);
       setSizes([]);
       setSelectedProduct(null);
       
-      // Оновлюємо дані
+      
       fetchDashboardData();
       
     } catch (err: any) {
@@ -176,7 +176,7 @@ export const AdminPage: React.FC = () => {
   const handleEditProduct = (product: any) => {
     setSelectedProduct(product);
     
-    // Заповнюємо форму даними товару
+    
     resetProduct({
       name: product.name,
       price: product.price.toString(),
@@ -189,12 +189,12 @@ export const AdminPage: React.FC = () => {
       features: Array.isArray(product.features) ? product.features.join(", ") : product.features || "",
     });
     
-    // Заповнюємо розміри
+    
     if (product.sizes && Array.isArray(product.sizes)) {
       setSizes(product.sizes);
     }
     
-    setProductImages([]); // Скидаємо нові зображення
+    setProductImages([]); 
     setShowAddProductModal(true);
   };
 
@@ -231,7 +231,7 @@ export const AdminPage: React.FC = () => {
     setProductImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // ========== RENDER ==========
+  
 
   if (loading) {
     return (

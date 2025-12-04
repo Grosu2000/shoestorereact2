@@ -49,7 +49,7 @@ export const CheckoutPage: React.FC = () => {
   const deliveryCost = watch('deliveryMethod') === 'courier' ? 100 : 50;
   const totalWithDelivery = cart.total + deliveryCost;
 
-  // Створення замовлення
+  
   const createOrder = async (formData: CheckoutFormData): Promise<string> => {
     const orderData: CreateOrderData = {
       items: cart.items.map(item => ({
@@ -80,7 +80,7 @@ export const CheckoutPage: React.FC = () => {
     return response.order.id;
   };
 
-  // Оплата через LiqPay
+  
   const handleLiqPayPayment = async (orderId: string, amount: number) => {
     try {
       const response = await paymentApi.createLiqPayPayment(
@@ -91,7 +91,7 @@ export const CheckoutPage: React.FC = () => {
       
       setLiqPayConfig(response);
       
-      // Автоматична відправка форми LiqPay
+      
       setTimeout(() => {
         const form = document.getElementById('liqpay-form') as HTMLFormElement;
         if (form) form.submit();
@@ -114,21 +114,21 @@ export const CheckoutPage: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // 1. Створити замовлення
+      
       const orderId = await createOrder(formData);
       showToast('Замовлення створено!', 'success');
 
-      // 2. Обробка оплати в залежності від методу
+      
       if (formData.paymentMethod === 'liqpay') {
-        // Оплата через LiqPay
+        
         await handleLiqPayPayment(orderId, totalWithDelivery);
       } else if (formData.paymentMethod === 'cash') {
-        // Оплата готівкою
+        
         showToast('Замовлення створено! Оплата при отриманні.', 'success');
         clearCart();
         navigate(`/order-success/${orderId}`);
       } else {
-        // Карткова оплата
+        
         showToast('Замовлення створено!', 'success');
         clearCart();
         navigate(`/order-success/${orderId}`);
@@ -141,7 +141,7 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  // Якщо LiqPay конфігурація готова - показуємо форму
+  
   if (liqPayConfig) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8">

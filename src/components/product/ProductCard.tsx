@@ -10,7 +10,7 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   console.log("ProductCard rendering:", product);
 
-  // Безпечне отримання даних
+  
   const images = product.images || ["/images/placeholder.jpg"];
   const sizes = product.sizes || [];
   const colors = product.colors || [];
@@ -26,7 +26,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const availableSizes = sizes.filter((size) => size.stock > 0);
   const isAnySizeAvailable = availableSizes.length > 0;
 
-  // Перевірка чи товар новий (30 днів)
+  
   const isNewProduct = product.createdAt
     ? new Date(product.createdAt).getTime() >
       Date.now() - 30 * 24 * 60 * 60 * 1000
@@ -38,7 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       )
     : 0;
 
-  // Визначаємо inStock
+  
   const inStock =
     product.inStock !== undefined ? product.inStock : isAnySizeAvailable;
 
@@ -196,7 +196,7 @@ function getColorHex(colorName: string): string {
     Коричневий: "#A52A2A",
     Бежевий: "#F5F5DC",
     Рожевий: "#FFC0CB",
-    Фіолетовий: "#800080", // Додано для вашого товару
+    Фіолетовий: "#800080", 
   };
 
   return colorMap[colorName] || "#D8E2EB";

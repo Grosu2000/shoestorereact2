@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/auth-store';
 import { useToast } from '../contexts/ToastContext';
 
-// Типи для користувача
+
 interface User {
   id: string;
   email: string;
@@ -14,7 +14,7 @@ interface User {
   avatar?: string;
 }
 
-// Типи для замовлення
+
 interface Order {
   id: string;
   orderNumber: string;
@@ -23,7 +23,7 @@ interface Order {
   createdAt: string;
 }
 
-// Типи для відповіді API
+
 interface ApiResponse<T = any> {
   success: boolean;
   data: T;
@@ -37,12 +37,12 @@ interface ProfileData extends User {
   recentOrders: Order[];
 }
 
-// Базовий API URL
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// API функції
+
 export const userApi = {
-  // Отримати профіль
+  
   getProfile: async (): Promise<ApiResponse<ProfileData>> => {
     const token = localStorage.getItem('token') || useAuthStore.getState().token;
     
@@ -56,7 +56,7 @@ export const userApi = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      credentials: 'include', // Додайте цей параметр
+      credentials: 'include', 
     });
     
     if (!response.ok) {
@@ -66,7 +66,7 @@ export const userApi = {
     return response.json();
   },
 
-  // Оновити профіль
+  
   updateProfile: async (data: { name: string; email: string }): Promise<ApiResponse<User>> => {
     const token = localStorage.getItem('token') || useAuthStore.getState().token;
     
@@ -81,7 +81,7 @@ export const userApi = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
-      credentials: 'include', // Додайте цей параметр
+      credentials: 'include', 
     });
     
     if (!response.ok) {
@@ -92,7 +92,7 @@ export const userApi = {
     return response.json();
   },
 
-  // Змінити пароль
+  
   changePassword: async (data: {
     currentPassword: string;
     newPassword: string;
@@ -110,7 +110,7 @@ export const userApi = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
-      credentials: 'include', // Додайте цей параметр
+      credentials: 'include', 
     });
     
     if (!response.ok) {
@@ -122,7 +122,7 @@ export const userApi = {
   },
 };
 
-// Компонент форми профілю
+
 const ProfileForm = ({
   profile,
   onSubmit,
@@ -190,7 +190,7 @@ const ProfileForm = ({
   );
 };
 
-// Компонент форми зміни пароля
+
 const PasswordForm = ({
   onSubmit,
   onCancel,
@@ -288,7 +288,7 @@ const PasswordForm = ({
   );
 };
 
-// Компонент історії замовлень
+
 const OrderHistory = ({ orders }: { orders: Order[] }) => {
   return (
     <div className="space-y-3">
@@ -329,14 +329,14 @@ const OrderHistory = ({ orders }: { orders: Order[] }) => {
   );
 };
 
-// Головний компонент ProfilePage
+
 export const ProfilePage = () => {
   const { user, updateUser } = useAuthStore();
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  // Отримання профілю з API
+  
   const {
     data: profileData,
     isLoading,
@@ -347,13 +347,13 @@ export const ProfilePage = () => {
     enabled: !!user,
   });
 
-  // Оновлення профілю
+  
   const updateMutation = useMutation({
     mutationFn: userApi.updateProfile,
     onSuccess: (data) => {
       showToast('Профіль успішно оновлено', 'success');
       if (updateUser && data.data) {
-        updateUser(data.data); // Тепер цей метод є в store
+        updateUser(data.data); 
       }
       setIsEditing(false);
       refetch();
@@ -366,7 +366,7 @@ export const ProfilePage = () => {
     },
   });
 
-  // Зміна пароля
+  
   const changePasswordMutation = useMutation({
     mutationFn: userApi.changePassword,
     onSuccess: () => {
@@ -381,12 +381,12 @@ export const ProfilePage = () => {
     },
   });
 
-  // Обробка оновлення профілю
+  
   const handleUpdateProfile = (data: { name: string; email: string }) => {
     updateMutation.mutate(data);
   };
 
-  // Обробка зміни пароля
+  
   const handleChangePassword = (data: {
     currentPassword: string;
     newPassword: string;

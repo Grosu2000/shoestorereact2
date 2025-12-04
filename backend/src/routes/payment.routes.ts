@@ -8,11 +8,11 @@ import {
 
 const router = Router();
 
-// Захищені маршрути
+
 router.post('/create-payment', authMiddleware, createPayment);
 router.get('/check/:orderId', authMiddleware, checkPayment);
 
-// Public callback для LiqPay
+
 router.post('/callback', paymentCallback);
 
 export default router;

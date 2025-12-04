@@ -23,12 +23,12 @@ export const useProducts = (params?: {
       const queryString = queryParams.toString();
       const url = queryString ? `/products?${queryString}` : '/products';
       
-      // API повертає просто масив товарів: Product[]
+      
       const products = await api.get<Product[]>(url);
       
-      console.log('API products:', products); // Додайте цей лог
+      console.log('API products:', products); 
       
-      return products; // Повертаємо просто масив
+      return products; 
     },
     staleTime: 1000 * 60 * 5,
   });

@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-// Захищені маршрути
+
 router.post('/', authMiddleware, createOrder);
 router.get('/my-orders', authMiddleware, getUserOrders);
 router.get('/:id', authMiddleware, getOrderById);

@@ -87,7 +87,7 @@ export const OrderHistoryPage: React.FC = () => {
     try {
       await orderApi.cancelOrder(orderId);
       showToast("Замовлення скасовано", "success");
-      fetchOrders(); // Оновити список
+      fetchOrders(); 
     } catch (err: any) {
       showToast(err.message || "Помилка скасування", "error");
     }

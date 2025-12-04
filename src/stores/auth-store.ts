@@ -13,7 +13,7 @@ interface AuthStore {
   logout: () => void;
   checkAuth: () => Promise<void>;
   clearError: () => void;
-  // ДОДАЄМО МЕТОДИ
+  
   setUser: (user: User | null) => void;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -26,7 +26,7 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       error: null,
 
-      // СІГНАТУРИ МЕТОДІВ
+      
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
@@ -36,7 +36,7 @@ export const useAuthStore = create<AuthStore>()(
             token: response.token,
             isLoading: false,
           });
-          // ВАЖЛИВО: Зберегти токен в localStorage
+          
           localStorage.setItem("token", response.token);
         } catch (error: any) {
           set({
@@ -109,7 +109,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ error: null });
       },
 
-      // ДОДАЄМО НОВІ МЕТОДИ
+      
       setUser: (user: User | null) => {
         set({ user });
       },

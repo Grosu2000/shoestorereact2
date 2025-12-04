@@ -1,4 +1,4 @@
-// backend/src/middleware/auth.middleware.ts
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -26,7 +26,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     
-    // Додаємо дані користувача до запиту
+    
     (req as any).user = {
       userId: decoded.userId,
       email: decoded.email,

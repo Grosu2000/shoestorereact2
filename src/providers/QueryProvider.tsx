@@ -5,9 +5,9 @@ import type { ReactNode } from 'react';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 хвилин
+      staleTime: 1000 * 60 * 5, 
       retry: 1,
-      refetchOnWindowFocus: false, // Вимикає автоматичний refetch при фокусі
+      refetchOnWindowFocus: false, 
     },
     mutations: {
       retry: 0,

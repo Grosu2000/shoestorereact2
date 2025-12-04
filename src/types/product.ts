@@ -15,7 +15,7 @@ export interface Product {
   sizes: Array<{ size: string; stock: number }>;
   colors: string[];
   images: string[];
-  stock: number; // ✅ Додайте це поле
+  stock: number; 
   rating: number;
   reviewCount: number;
   features: string[];
@@ -25,9 +25,9 @@ export interface Product {
   inStock: boolean;
   createdAt: string;
   updatedAt: string;
-  // Опціональні поля для сумісності
-  image?: string; // для ProductCard
-  stockQuantity?: number; // для ProductCard
+  
+  image?: string; 
+  stockQuantity?: number; 
 }
 
 export interface CartItem {

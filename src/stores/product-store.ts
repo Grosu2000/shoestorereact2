@@ -12,7 +12,7 @@ interface ProductStore {
   isLoading: boolean;
   error: string | null;
   
-  // Дії
+  
   fetchProducts: () => Promise<void>;
   setCategory: (category: string) => void;
   setBrand: (brand: string) => void;
@@ -113,7 +113,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await productService.create(data);
-      // Оновлюємо список після створення
+      
       await get().fetchProducts();
     } catch (error: any) {
       set({ 
@@ -130,7 +130,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await productService.update(id, data);
-      // Оновлюємо список після редагування
+      
       await get().fetchProducts();
     } catch (error: any) {
       set({ 
@@ -147,7 +147,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await productService.delete(id);
-      // Видаляємо зі списку
+      
       set(state => ({
         products: state.products.filter(p => p.id !== id),
         filteredProducts: state.filteredProducts.filter(p => p.id !== id),

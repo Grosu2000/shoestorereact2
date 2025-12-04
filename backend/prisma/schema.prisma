@@ -32,7 +32,7 @@ model Product {
   description   String
   category      String
   brand         String
-  sizes         Json      // [{size: String, stock: Int}]
+  sizes         Json      
   colors        String[]
   images        String[]
   stock         Int       @default(0)
@@ -75,14 +75,14 @@ model Order {
   id             String        @id @default(cuid())
   orderNumber    String        @unique
   userId         String
-  items          Json          // [{productId, name, price, quantity, size, color, image}]
-  shippingInfo   Json          // {firstName, lastName, email, phone, address, city, postalCode}
+  items          Json          
+  shippingInfo   Json          
   total          Float
   status         OrderStatus   @default(PENDING)
   paymentStatus  PaymentStatus @default(PENDING)
-  paymentMethod  String        // card, cash, liqpay
-  deliveryMethod String        // nova-poshta, ukr-poshta, courier
-  paymentData    Json?         // Дані від LiqPay або іншої платіжної системи
+  paymentMethod  String        
+  deliveryMethod String        
+  paymentData    Json?         
   notes          String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

@@ -33,21 +33,21 @@ export const ProductDetailPage: React.FC = () => {
         setLoading(true);
         console.log('📡 Запит товару:', id);
         
-        // Спробуйте обидва варіанти API відповіді
+        
         const response = await api.get<any>(`/products/${id}`);
         console.log('📡 Відповідь API:', response);
         
-        // Варіант 1: Якщо API повертає { data: {...} }
+        
         if (response.data) {
           console.log('✅ Товар знайдено:', response.data.name);
           setProduct(response.data);
         } 
-        // Варіант 2: Якщо API повертає просто об'єкт товару
+        
         else if (response.id) {
           console.log('✅ Товар знайдено (прямий об\'єкт):', response.name);
           setProduct(response);
         }
-        // Варіант 3: Якщо API повертає { success: true, data: {...} }
+        
         else if (response.success && response.data) {
           console.log('✅ Товар знайдено (успіх):', response.data.name);
           setProduct(response.data);
@@ -114,7 +114,7 @@ export const ProductDetailPage: React.FC = () => {
     navigate("/cart");
   };
 
-  // Безпечне отримання даних
+  
   const sizes = product.sizes || [];
   const colors = product.colors || [];
   const images = product.images || ['/images/placeholder.jpg'];

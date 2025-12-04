@@ -22,7 +22,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     search 
   });
 
-  // Додамо логування
+  
   console.log('Products from hook:', products);
   console.log('Products type:', typeof products);
   console.log('Is array?', Array.isArray(products));
@@ -43,7 +43,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     );
   }
 
-  // data тепер це просто масив товарів
+  
   const productList = Array.isArray(products) ? products : [];
   const displayedProducts = limit ? productList.slice(0, limit) : productList;
 
