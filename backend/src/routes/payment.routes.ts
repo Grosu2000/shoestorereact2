@@ -1,18 +1,18 @@
 import { Router } from 'express';
-import { 
-  createLiqPayPayment, 
-  liqPayCallback,
-  checkPaymentStatus 
-} from '../controllers/payment.controller'; // ← Імпорт з payment.controller
 import { authMiddleware } from '../middleware/auth.middleware';
+import { 
+  createPayment, 
+  paymentCallback, 
+  checkPayment 
+} from '../controllers/payment.controller';
 
 const router = Router();
 
 // Захищені маршрути
-router.post('/create-payment', authMiddleware, createLiqPayPayment);
-router.get('/status/:orderId', authMiddleware, checkPaymentStatus);
+router.post('/create-payment', authMiddleware, createPayment);
+router.get('/check/:orderId', authMiddleware, checkPayment);
 
-// Публічний callback від LiqPay
-router.post('/callback', liqPayCallback);
+// Public callback для LiqPay
+router.post('/callback', paymentCallback);
 
 export default router;

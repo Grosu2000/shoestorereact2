@@ -25,76 +25,77 @@ const handleResponse = async (response: Response) => {
   }
   
   if (!response.ok) {
-    // Бекенд може повертати { success: false, error: '...' }
     const errorMsg = data.error || data.message || `HTTP ${response.status}`;
     throw new Error(errorMsg);
   }
   
-  // Якщо бекенд повертає { success: true, data: {...} }
   if (data.success !== undefined) {
     return data.data || data;
   }
   
-  // Якщо бекенд повертає просто дані
   return data;
+};
+
+// Функція для створення заголовків
+const createHeaders = (isFormData: boolean = false): HeadersInit => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+  
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  headers['Accept'] = 'application/json';
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 };
 
 const api = {
   get: async <T>(endpoint: string): Promise<T> => {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
+    const headers = createHeaders(false);
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
     const response = await fetch(`${API_URL}${endpoint}`, {
       headers,
-      credentials: 'include', // ДУЖЕ ВАЖЛИВО для cookies та авторизації
+      credentials: 'include',
     });
     
     return handleResponse(response);
   },
 
   post: async <T>(endpoint: string, data?: unknown): Promise<T> => {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
+    const isFormData = data instanceof FormData;
+    const headers = createHeaders(isFormData);
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    const body = isFormData 
+      ? data as FormData 
+      : (data !== undefined ? JSON.stringify(data) : undefined);
 
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
       headers,
-      body: data !== undefined ? JSON.stringify(data) : undefined,
-      credentials: 'include', // ДУЖЕ ВАЖЛИВО
+      body,
+      credentials: 'include',
     });
     
     return handleResponse(response);
   },
 
   put: async <T>(endpoint: string, data: unknown): Promise<T> => {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
+    const isFormData = data instanceof FormData;
+    const headers = createHeaders(isFormData);
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    const body = isFormData 
+      ? data as FormData 
+      : JSON.stringify(data);
 
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(data),
+      body,
       credentials: 'include',
     });
     
@@ -102,15 +103,8 @@ const api = {
   },
 
   delete: async (endpoint: string): Promise<void> => {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      'Accept': 'application/json',
-    };
+    const headers = createHeaders(false);
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'DELETE',
       headers,
