@@ -5,9 +5,7 @@ import path from 'path';
 
 const prisma = new PrismaClient();
 
-// ========== ЗАМОВЛЕННЯ ==========
 
-// Отримати всі замовлення (для адміна)
 export const getAllOrders = async (req: Request, res: Response) => {
   try {
     const orders = await prisma.order.findMany({
@@ -23,7 +21,6 @@ export const getAllOrders = async (req: Request, res: Response) => {
       }
     });
 
-    // Парсимо JSON поля
     const parsedOrders = orders.map(order => ({
       ...order,
       items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
@@ -43,7 +40,6 @@ export const getAllOrders = async (req: Request, res: Response) => {
   }
 };
 
-// Оновити статус замовлення (адмін)
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -68,9 +64,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   }
 };
 
-// ========== ТОВАРИ ==========
 
-// Створити товар з фото
 export const createProduct = async (req: Request, res: Response) => {
   try {
     console.log('Create product request body:', req.body);
@@ -89,7 +83,6 @@ export const createProduct = async (req: Request, res: Response) => {
       features 
     } = req.body;
 
-    // Обробка зображень
     let images: string[] = [];
     
     if (req.files && Array.isArray(req.files)) {
@@ -98,13 +91,11 @@ export const createProduct = async (req: Request, res: Response) => {
       );
     }
 
-    // Генерація slug
     const slug = name.toLowerCase()
       .replace(/[^\w\s]/gi, '')
       .replace(/\s+/g, '-')
       .replace(/--+/g, '-');
 
-    // Парсинг JSON полів
     const parsedSizes = sizes ? JSON.parse(sizes) : [];
     const parsedColors = colors ? colors.split(',').map((c: string) => c.trim()) : [];
     const parsedFeatures = features ? features.split(',').map((f: string) => f.trim()) : [];
@@ -144,13 +135,11 @@ export const createProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Оновити товар
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const updateData: any = req.body;
 
-    // Конвертація полів
     if (updateData.price) updateData.price = parseFloat(updateData.price);
     if (updateData.stock) {
       updateData.stock = parseInt(updateData.stock);
@@ -160,13 +149,11 @@ export const updateProduct = async (req: Request, res: Response) => {
     if (updateData.colors) updateData.colors = updateData.colors.split(',').map((c: string) => c.trim());
     if (updateData.features) updateData.features = updateData.features.split(',').map((f: string) => f.trim());
 
-    // Обробка нових зображень
     if (req.files && Array.isArray(req.files)) {
       const newImages = (req.files as Express.Multer.File[]).map(file => 
         `/uploads/${file.filename}`
       );
       
-      // Отримати поточні зображення
       const existingProduct = await prisma.product.findUnique({
         where: { id },
         select: { images: true }
@@ -195,12 +182,10 @@ export const updateProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Видалити товар
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Видалити зображення з файлової системи
     const product = await prisma.product.findUnique({
       where: { id },
       select: { images: true }
@@ -232,7 +217,6 @@ export const deleteProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Отримати всі товари (для адміна)
 export const getAllProducts = async (req: Request, res: Response) => {
   try {
     const products = await prisma.product.findMany({
@@ -252,11 +236,9 @@ export const getAllProducts = async (req: Request, res: Response) => {
   }
 };
 
-// ========== СТАТИСТИКА ==========
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    // Загальна статистика
     const totalOrders = await prisma.order.count();
     const totalRevenue = await prisma.order.aggregate({
       _sum: { total: true }
@@ -264,7 +246,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const totalProducts = await prisma.product.count();
     const totalUsers = await prisma.user.count();
 
-    // Статистика за статусами замовлень
     const pendingOrders = await prisma.order.count({
       where: { status: 'PENDING' }
     });
@@ -278,7 +259,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       where: { status: 'DELIVERED' }
     });
 
-    // Останні 5 замовлень
     const recentOrders = await prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -292,7 +272,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       }
     });
 
-    // Товари з низьким запасом
     const lowStockProducts = await prisma.product.findMany({
       where: { stock: { lt: 10 } },
       take: 5

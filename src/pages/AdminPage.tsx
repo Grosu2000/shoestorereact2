@@ -564,10 +564,14 @@ export const AdminPage: React.FC = () => {
                   <div className="h-48 bg-gray-100">
                     {product.images && product.images.length > 0 ? (
                       <img
-                        src={`http://localhost:3000${product.images[0]}`}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
+  src={product.images && product.images[0] 
+    ? product.images[0].startsWith('http') 
+      ? product.images[0]
+      : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${product.images[0]}`
+    : '/images/placeholder.jpg'}
+  alt={product.name}
+  className="w-full h-full object-cover"
+/>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
                         Немає зображення

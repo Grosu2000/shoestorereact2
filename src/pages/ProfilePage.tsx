@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/auth-store';
 import { useToast } from '../contexts/ToastContext';
+import { apiService } from '../services/api'; // ✅ Добавлен импорт
 
-
+// Интерфейсы остаются без изменений
 interface User {
   id: string;
   email: string;
@@ -14,7 +15,6 @@ interface User {
   avatar?: string;
 }
 
-
 interface Order {
   id: string;
   orderNumber: string;
@@ -22,7 +22,6 @@ interface Order {
   status: string;
   createdAt: string;
 }
-
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -37,92 +36,84 @@ interface ProfileData extends User {
   recentOrders: Order[];
 }
 
+// ❌ УДАЛЕНО: const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-
+// ❌ УДАЛЯЕМ старый userApi и заменяем на apiService
+/* 
 export const userApi = {
-  
+  // УДАЛЯЕМ все методы - используем apiService
+};
+*/
+
+// ✅ Используем существующий apiService из api.ts
+export const userApi = {
+  // Используем методы из apiService
   getProfile: async (): Promise<ApiResponse<ProfileData>> => {
-    const token = localStorage.getItem('token') || useAuthStore.getState().token;
-    
-    if (!token) {
-      throw new Error('No authentication token');
+    try {
+      // Используем apiService вместо прямого fetch
+      const response = await apiService.getProfile();
+      
+      // Приводим ответ к нужному формату
+      if (response && typeof response === 'object') {
+        // Если ответ уже в формате ApiResponse
+        if ('success' in response) {
+          return response as ApiResponse<ProfileData>;
+        }
+        // Если ответ - просто данные
+        return {
+          success: true,
+          data: response as ProfileData
+        };
+      }
+      
+      throw new Error('Invalid response format');
+    } catch (error: any) {
+      console.error('Profile API error:', error);
+      throw error;
     }
-
-    const response = await fetch(`${API_BASE}/api/auth/me`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include', 
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    return response.json();
   },
 
-  
   updateProfile: async (data: { name: string; email: string }): Promise<ApiResponse<User>> => {
-    const token = localStorage.getItem('token') || useAuthStore.getState().token;
-    
-    if (!token) {
-      throw new Error('No authentication token');
+    try {
+      const response = await apiService.updateProfile(data);
+      
+      if (response && typeof response === 'object') {
+        if ('success' in response) {
+          return response as ApiResponse<User>;
+        }
+        return {
+          success: true,
+          data: response as User
+        };
+      }
+      
+      throw new Error('Invalid response format');
+    } catch (error: any) {
+      console.error('Update profile error:', error);
+      throw error;
     }
-
-    const response = await fetch(`${API_BASE}/api/auth/profile`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-      credentials: 'include', 
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-    
-    return response.json();
   },
 
-  
   changePassword: async (data: {
-    currentPassword: string;
-    newPassword: string;
-  }): Promise<ApiResponse<void>> => {
-    const token = localStorage.getItem('token') || useAuthStore.getState().token;
+  currentPassword: string;
+  newPassword: string;
+}): Promise<ApiResponse<void>> => {
+  try {
+    const { api } = await import('../services/api');
+    await api.put('/auth/change-password', data);
     
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
-    const response = await fetch(`${API_BASE}/api/auth/change-password`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-      credentials: 'include', 
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-    
-    return response.json();
-  },
+    return {
+      success: true,
+      data: undefined as any,
+    };
+  } catch (error: any) {
+    console.error('Change password error:', error);
+    throw error;
+  }
+},
 };
 
-
+// Компоненты ProfileForm, PasswordForm, OrderHistory остаются без изменений
 const ProfileForm = ({
   profile,
   onSubmit,
@@ -189,7 +180,6 @@ const ProfileForm = ({
     </form>
   );
 };
-
 
 const PasswordForm = ({
   onSubmit,
@@ -288,7 +278,6 @@ const PasswordForm = ({
   );
 };
 
-
 const OrderHistory = ({ orders }: { orders: Order[] }) => {
   return (
     <div className="space-y-3">
@@ -329,14 +318,12 @@ const OrderHistory = ({ orders }: { orders: Order[] }) => {
   );
 };
 
-
 export const ProfilePage = () => {
   const { user, updateUser } = useAuthStore();
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  
   const {
     data: profileData,
     isLoading,
@@ -347,13 +334,12 @@ export const ProfilePage = () => {
     enabled: !!user,
   });
 
-  
   const updateMutation = useMutation({
     mutationFn: userApi.updateProfile,
     onSuccess: (data) => {
       showToast('Профіль успішно оновлено', 'success');
       if (updateUser && data.data) {
-        updateUser(data.data); 
+        updateUser(data.data);
       }
       setIsEditing(false);
       refetch();
@@ -366,7 +352,6 @@ export const ProfilePage = () => {
     },
   });
 
-  
   const changePasswordMutation = useMutation({
     mutationFn: userApi.changePassword,
     onSuccess: () => {
@@ -381,12 +366,10 @@ export const ProfilePage = () => {
     },
   });
 
-  
   const handleUpdateProfile = (data: { name: string; email: string }) => {
     updateMutation.mutate(data);
   };
 
-  
   const handleChangePassword = (data: {
     currentPassword: string;
     newPassword: string;
