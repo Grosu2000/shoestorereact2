@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
-import { prisma } from '../lib/prisma';
+import { PrismaClient } from '@prisma/client';
 
-// Створення замовлення
+const prisma = new PrismaClient();
+
 export const createOrder = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
+    console.log('Creating order with data:', req.body);
     
+    const userId = (req as any).user?.userId;
     if (!userId) {
       return res.status(401).json({ 
         success: false, 
@@ -13,231 +15,134 @@ export const createOrder = async (req: Request, res: Response) => {
       });
     }
 
-    const { 
-      items, 
-      shippingAddress, 
-      deliveryMethod = 'nova-poshta', 
-      paymentMethod = 'card', 
-      total, 
-      notes = '' 
-    } = req.body;
-
-    // Валідація
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Кошик порожній' 
-      });
-    }
-
-    if (!shippingAddress || !total) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Відсутні обов\'язкові поля' 
-      });
-    }
+    const { items, shippingAddress, deliveryMethod, paymentMethod, total, notes } = req.body;
 
     // Генерація номера замовлення
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Створення замовлення
     const order = await prisma.order.create({
       data: {
         orderNumber,
         userId,
-        items: items, // JSON поле
-        shippingInfo: shippingAddress, // JSON поле
-        total: parseFloat(total),
-        status: 'PENDING',
-        paymentStatus: 'PENDING',
-        paymentMethod,
-        deliveryMethod,
-        notes
-      },
-      select: {
-        id: true,
-        orderNumber: true,
-        total: true,
-        status: true,
-        paymentStatus: true,
-        paymentMethod: true,
-        deliveryMethod: true,
-        createdAt: true,
-        items: true,
-        shippingInfo: true,
-        notes: true
+        items: JSON.parse(JSON.stringify(items || [])),
+        shippingInfo: JSON.parse(JSON.stringify(shippingAddress || {})),
+        total: parseFloat(total) || 0,
+        deliveryMethod: deliveryMethod || 'nova-poshta',
+        paymentMethod: paymentMethod || 'cash',
+        notes: notes || '',
+        status: paymentMethod === 'cash' ? 'PENDING' : 'PROCESSING',
+        paymentStatus: 'PENDING'
       }
+    });
+
+    console.log('Order created successfully:', order.id);
+
+    // Очистити кошик
+    await prisma.cartItem.deleteMany({
+      where: { userId }
     });
 
     res.status(201).json({
       success: true,
-      data: { order },
-      message: 'Замовлення створено'
+      data: { 
+        order: {
+          ...order,
+          items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+          shippingInfo: typeof order.shippingInfo === 'string' ? JSON.parse(order.shippingInfo) : order.shippingInfo
+        } 
+      },
+      message: 'Замовлення створено успішно'
     });
-
   } catch (error: any) {
     console.error('Create order error:', error);
-    
-    // Обробка помилок Prisma
-    if (error.code === 'P2002') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Помилка унікальності замовлення' 
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка створення замовлення'
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка створення замовлення',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// Отримання всіх замовлень користувача
 export const getUserOrders = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = (req as any).user?.userId;
     
-    if (!userId) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Не авторизовано' 
-      });
-    }
-
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
-
     const orders = await prisma.order.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-      select: {
-        id: true,
-        orderNumber: true,
-        total: true,
-        status: true,
-        paymentStatus: true,
-        paymentMethod: true,
-        deliveryMethod: true,
-        createdAt: true,
-        updatedAt: true,
-        items: true,
-        shippingInfo: true,
-        paymentData: true,
-        notes: true
-      }
+      orderBy: { createdAt: 'desc' }
     });
 
-    const total = await prisma.order.count({ 
-      where: { userId } 
-    });
+    // Парсимо JSON поля
+    const parsedOrders = orders.map(order => ({
+      ...order,
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+      shippingInfo: typeof order.shippingInfo === 'string' ? JSON.parse(order.shippingInfo) : order.shippingInfo
+    }));
 
     res.json({
       success: true,
-      data: {
-        orders,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+      data: { orders: parsedOrders }
     });
-
   } catch (error: any) {
     console.error('Get user orders error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка отримання замовлень'
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка отримання замовлень' 
     });
   }
 };
 
-// Отримання замовлення по ID
 export const getOrderById = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
     const { id } = req.params;
-    
-    if (!userId) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Не авторизовано' 
-      });
-    }
+    const userId = (req as any).user?.userId;
 
     const order = await prisma.order.findFirst({
-      where: {
+      where: { 
         id,
         userId
-      },
-      select: {
-        id: true,
-        orderNumber: true,
-        total: true,
-        status: true,
-        paymentStatus: true,
-        paymentMethod: true,
-        deliveryMethod: true,
-        createdAt: true,
-        updatedAt: true,
-        items: true,
-        shippingInfo: true,
-        paymentData: true,
-        notes: true
       }
     });
 
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Замовлення не знайдено'
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Замовлення не знайдено' 
       });
     }
 
+    // Парсимо JSON поля
+    const parsedOrder = {
+      ...order,
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+      shippingInfo: typeof order.shippingInfo === 'string' ? JSON.parse(order.shippingInfo) : order.shippingInfo
+    };
+
     res.json({
       success: true,
-      data: { order }
+      data: { order: parsedOrder }
     });
-
   } catch (error: any) {
     console.error('Get order error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка отримання замовлення'
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка отримання замовлення' 
     });
   }
 };
 
-// Оновлення статусу замовлення
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, paymentStatus } = req.body;
-
-    const updateData: any = {};
-    
-    if (status) {
-      updateData.status = status;
-    }
-    
-    if (paymentStatus) {
-      updateData.paymentStatus = paymentStatus;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Немає даних для оновлення'
-      });
-    }
+    const { status } = req.body;
+    const userId = (req as any).user?.userId;
 
     const order = await prisma.order.update({
-      where: { id },
-      data: updateData
+      where: { 
+        id,
+        userId
+      },
+      data: { status }
     });
 
     res.json({
@@ -245,20 +150,11 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       data: { order },
       message: 'Статус замовлення оновлено'
     });
-
   } catch (error: any) {
-    console.error('Update order status error:', error);
-    
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        error: 'Замовлення не знайдено'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка оновлення статусу'
+    console.error('Update order error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка оновлення статусу' 
     });
   }
 };

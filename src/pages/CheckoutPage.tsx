@@ -6,13 +6,10 @@ import { useAuthStore } from '../stores/auth-store';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../contexts/ToastContext';
-
-// LiqPay тип
-interface LiqPayConfig {
-  data: string;
-  signature: string;
-}
-
+import { orderApi } from '../services/order.api';
+import { paymentApi } from '../services/payment.api';
+import type { LiqPayConfig } from '../services/payment.api';
+import type { CreateOrderData } from '../services/order.api';
 interface CheckoutFormData {
   firstName: string;
   lastName: string;
@@ -53,70 +50,46 @@ export const CheckoutPage: React.FC = () => {
   const totalWithDelivery = cart.total + deliveryCost;
 
   // Створення замовлення
-  const createOrder = async (formData: CheckoutFormData) => {
-    try {
-      const orderData = {
-        items: cart.items.map(item => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          size: item.selectedSize,
-          color: item.selectedColor,
-          price: item.product.price
-        })),
-        shippingAddress: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          postalCode: formData.postalCode
-        },
-        deliveryMethod: formData.deliveryMethod,
-        paymentMethod: formData.paymentMethod,
-        total: totalWithDelivery,
-        notes: formData.notes
-      };
+  const createOrder = async (formData: CheckoutFormData): Promise<string> => {
+    const orderData: CreateOrderData = {
+      items: cart.items.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        price: item.product.price,
+        quantity: item.quantity,
+        size: item.selectedSize,
+        color: item.selectedColor,
+        image: item.product.image || item.product.images?.[0] || '/images/placeholder.jpg'
+      })),
+      shippingAddress: {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        postalCode: formData.postalCode
+      },
+      deliveryMethod: formData.deliveryMethod,
+      paymentMethod: formData.paymentMethod,
+      total: totalWithDelivery,
+      notes: formData.notes
+    };
 
-      // Відправка на бекенд
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      if (!response.ok) throw new Error('Order creation failed');
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Order creation error:', error);
-      throw error;
-    }
+    const response = await orderApi.create(orderData);
+    return response.order.id;
   };
 
   // Оплата через LiqPay
   const handleLiqPayPayment = async (orderId: string, amount: number) => {
     try {
-      const response = await fetch('/api/payment/create-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          orderId,
-          amount,
-          description: `Оплата замовлення #${orderId}`
-        })
-      });
-
-      if (!response.ok) throw new Error('Payment creation failed');
+      const response = await paymentApi.createLiqPayPayment(
+        orderId,
+        amount,
+        `Оплата замовлення #${orderId}`
+      );
       
-      const { data } = await response.json();
-      setLiqPayConfig(data);
+      setLiqPayConfig(response);
       
       // Автоматична відправка форми LiqPay
       setTimeout(() => {
@@ -124,9 +97,11 @@ export const CheckoutPage: React.FC = () => {
         if (form) form.submit();
       }, 100);
       
-    } catch (error) {
+    } catch (error: any) {
+      console.error('LiqPay payment error:', error);
       showToast('Помилка створення оплати', 'error');
       setIsProcessing(false);
+      throw error;
     }
   };
 
@@ -140,8 +115,8 @@ export const CheckoutPage: React.FC = () => {
 
     try {
       // 1. Створити замовлення
-      const orderResult = await createOrder(formData);
-      const orderId = orderResult.data.id;
+      const orderId = await createOrder(formData);
+      showToast('Замовлення створено!', 'success');
 
       // 2. Обробка оплати в залежності від методу
       if (formData.paymentMethod === 'liqpay') {
@@ -153,15 +128,15 @@ export const CheckoutPage: React.FC = () => {
         clearCart();
         navigate(`/order-success/${orderId}`);
       } else {
-        // Карткова оплата (тут можна додати інші платежні системи)
-        showToast('Замовлення створено! Перенаправляємо на оплату...', 'success');
-        // Тут можна додати іншу платіжну систему
+        // Карткова оплата
+        showToast('Замовлення створено!', 'success');
         clearCart();
         navigate(`/order-success/${orderId}`);
       }
 
-    } catch (error) {
-      showToast('Помилка оформлення замовлення', 'error');
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      showToast(error.message || 'Помилка оформлення замовлення', 'error');
       setIsProcessing(false);
     }
   };

@@ -1,223 +1,288 @@
 import { Request, Response } from 'express';
-import { prisma } from '../lib/prisma';
+import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
 
-// Отримання всіх замовлень (для адміна)
+const prisma = new PrismaClient();
+
+// ========== ЗАМОВЛЕННЯ ==========
+
+// Отримати всі замовлення (для адміна)
 export const getAllOrders = async (req: Request, res: Response) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      status, 
-      paymentStatus,
-      startDate,
-      endDate 
-    } = req.query;
-
-    const pageNum = Math.max(1, Number(page));
-    const limitNum = Math.min(100, Math.max(1, Number(limit)));
-
-    // Фільтри
-    const where: any = {};
-    
-    if (status) where.status = status;
-    if (paymentStatus) where.paymentStatus = paymentStatus;
-    
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate as string);
-      if (endDate) where.createdAt.lte = new Date(endDate as string);
-    }
-
-    // Отримання замовлень - ВИКОРИСТОВУЄМО SELECT
     const orders = await prisma.order.findMany({
-      where,
       orderBy: { createdAt: 'desc' },
-      skip: (pageNum - 1) * limitNum,
-      take: limitNum,
-      select: {
-        id: true,
-        orderNumber: true,
-        total: true,
-        status: true,
-        paymentStatus: true,
-        paymentMethod: true,
-        deliveryMethod: true,
-        createdAt: true,
-        updatedAt: true,
-        items: true,           // JSON поле
-        shippingInfo: true,    // JSON поле
-        notes: true,
+      include: {
         user: {
           select: {
             id: true,
-            name: true,
-            email: true
+            email: true,
+            name: true
           }
         }
       }
     });
 
-    const total = await prisma.order.count({ where });
+    // Парсимо JSON поля
+    const parsedOrders = orders.map(order => ({
+      ...order,
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+      shippingInfo: typeof order.shippingInfo === 'string' ? JSON.parse(order.shippingInfo) : order.shippingInfo
+    }));
 
     res.json({
       success: true,
-      data: {
-        orders,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          pages: Math.ceil(total / limitNum)
-        }
-      }
+      data: { orders: parsedOrders }
     });
-
   } catch (error: any) {
     console.error('Get all orders error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка отримання замовлень'
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка отримання замовлень' 
     });
   }
 };
 
-// Отримання деталей замовлення (для адміна)
-export const getOrderDetails = async (req: Request, res: Response) => {
+// Оновити статус замовлення (адмін)
+export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
-    const order = await prisma.order.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        orderNumber: true,
-        total: true,
-        status: true,
-        paymentStatus: true,
-        paymentMethod: true,
-        deliveryMethod: true,
-        paymentData: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        items: true,
-        shippingInfo: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Замовлення не знайдено'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: { order }
-    });
-
-  } catch (error: any) {
-    console.error('Get order details error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка отримання деталей замовлення'
-    });
-  }
-};
-
-// Оновлення замовлення (для адміна)
-export const updateOrder = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { status, paymentStatus, deliveryMethod, notes } = req.body;
-
-    const updateData: any = {};
-    
-    if (status) updateData.status = status;
-    if (paymentStatus) updateData.paymentStatus = paymentStatus;
-    if (deliveryMethod) updateData.deliveryMethod = deliveryMethod;
-    if (notes !== undefined) updateData.notes = notes;
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Немає даних для оновлення'
-      });
-    }
+    const { status } = req.body;
 
     const order = await prisma.order.update({
       where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        orderNumber: true,
-        status: true,
-        paymentStatus: true,
-        updatedAt: true
-      }
+      data: { status }
     });
 
     res.json({
       success: true,
       data: { order },
-      message: 'Замовлення оновлено'
+      message: 'Статус замовлення оновлено'
     });
-
   } catch (error: any) {
-    console.error('Update order error:', error);
-    
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        error: 'Замовлення не знайдено'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка оновлення замовлення'
+    console.error('Update order status error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка оновлення статусу' 
     });
   }
 };
 
-// Статистика замовлень (для адміна)
-export const getOrderStats = async (req: Request, res: Response) => {
-  try {
-    const { startDate, endDate } = req.query;
+// ========== ТОВАРИ ==========
 
-    const where: any = {};
+// Створити товар з фото
+export const createProduct = async (req: Request, res: Response) => {
+  try {
+    console.log('Create product request body:', req.body);
+    console.log('Files:', req.files);
     
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate as string);
-      if (endDate) where.createdAt.lte = new Date(endDate as string);
+    const { 
+      name, 
+      price, 
+      description, 
+      category, 
+      brand, 
+      sizes, 
+      colors, 
+      stock, 
+      material, 
+      features 
+    } = req.body;
+
+    // Обробка зображень
+    let images: string[] = [];
+    
+    if (req.files && Array.isArray(req.files)) {
+      images = (req.files as Express.Multer.File[]).map(file => 
+        `/uploads/${file.filename}`
+      );
     }
 
-    const totalOrders = await prisma.order.count({ where });
-    
-    const totalRevenueResult = await prisma.order.aggregate({
-      where,
-      _sum: { total: true }
+    // Генерація slug
+    const slug = name.toLowerCase()
+      .replace(/[^\w\s]/gi, '')
+      .replace(/\s+/g, '-')
+      .replace(/--+/g, '-');
+
+    // Парсинг JSON полів
+    const parsedSizes = sizes ? JSON.parse(sizes) : [];
+    const parsedColors = colors ? colors.split(',').map((c: string) => c.trim()) : [];
+    const parsedFeatures = features ? features.split(',').map((f: string) => f.trim()) : [];
+
+    const product = await prisma.product.create({
+      data: {
+        name,
+        slug,
+        price: parseFloat(price),
+        description,
+        category,
+        brand,
+        sizes: parsedSizes,
+        colors: parsedColors,
+        stock: parseInt(stock) || 0,
+        material: material || '',
+        features: parsedFeatures,
+        images,
+        inStock: parseInt(stock) > 0
+      }
     });
 
+    console.log('Product created:', product.id);
+
+    res.status(201).json({
+      success: true,
+      data: { product },
+      message: 'Товар успішно створено'
+    });
+  } catch (error: any) {
+    console.error('Create product error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка створення товару',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Оновити товар
+export const updateProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updateData: any = req.body;
+
+    // Конвертація полів
+    if (updateData.price) updateData.price = parseFloat(updateData.price);
+    if (updateData.stock) {
+      updateData.stock = parseInt(updateData.stock);
+      updateData.inStock = updateData.stock > 0;
+    }
+    if (updateData.sizes) updateData.sizes = JSON.parse(updateData.sizes);
+    if (updateData.colors) updateData.colors = updateData.colors.split(',').map((c: string) => c.trim());
+    if (updateData.features) updateData.features = updateData.features.split(',').map((f: string) => f.trim());
+
+    // Обробка нових зображень
+    if (req.files && Array.isArray(req.files)) {
+      const newImages = (req.files as Express.Multer.File[]).map(file => 
+        `/uploads/${file.filename}`
+      );
+      
+      // Отримати поточні зображення
+      const existingProduct = await prisma.product.findUnique({
+        where: { id },
+        select: { images: true }
+      });
+      
+      const currentImages = existingProduct?.images || [];
+      updateData.images = [...currentImages, ...newImages];
+    }
+
+    const product = await prisma.product.update({
+      where: { id },
+      data: updateData
+    });
+
+    res.json({
+      success: true,
+      data: { product },
+      message: 'Товар успішно оновлено'
+    });
+  } catch (error: any) {
+    console.error('Update product error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка оновлення товару' 
+    });
+  }
+};
+
+// Видалити товар
+export const deleteProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Видалити зображення з файлової системи
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: { images: true }
+    });
+
+    if (product?.images) {
+      product.images.forEach(image => {
+        const imagePath = path.join(__dirname, '../../public', image);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      });
+    }
+
+    await prisma.product.delete({
+      where: { id }
+    });
+
+    res.json({
+      success: true,
+      message: 'Товар успішно видалено'
+    });
+  } catch (error: any) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка видалення товару' 
+    });
+  }
+};
+
+// Отримати всі товари (для адміна)
+export const getAllProducts = async (req: Request, res: Response) => {
+  try {
+    const products = await prisma.product.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: { products }
+    });
+  } catch (error: any) {
+    console.error('Get all products error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка отримання товарів' 
+    });
+  }
+};
+
+// ========== СТАТИСТИКА ==========
+
+export const getDashboardStats = async (req: Request, res: Response) => {
+  try {
+    // Загальна статистика
+    const totalOrders = await prisma.order.count();
+    const totalRevenue = await prisma.order.aggregate({
+      _sum: { total: true }
+    });
+    const totalProducts = await prisma.product.count();
+    const totalUsers = await prisma.user.count();
+
+    // Статистика за статусами замовлень
+    const pendingOrders = await prisma.order.count({
+      where: { status: 'PENDING' }
+    });
+    const processingOrders = await prisma.order.count({
+      where: { status: 'PROCESSING' }
+    });
+    const shippedOrders = await prisma.order.count({
+      where: { status: 'SHIPPED' }
+    });
+    const deliveredOrders = await prisma.order.count({
+      where: { status: 'DELIVERED' }
+    });
+
+    // Останні 5 замовлень
     const recentOrders = await prisma.order.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
       take: 5,
-      select: {
-        id: true,
-        orderNumber: true,
-        total: true,
-        status: true,
-        createdAt: true,
+      orderBy: { createdAt: 'desc' },
+      include: {
         user: {
           select: {
             name: true,
@@ -227,20 +292,38 @@ export const getOrderStats = async (req: Request, res: Response) => {
       }
     });
 
+    // Товари з низьким запасом
+    const lowStockProducts = await prisma.product.findMany({
+      where: { stock: { lt: 10 } },
+      take: 5
+    });
+
     res.json({
       success: true,
       data: {
-        totalOrders,
-        totalRevenue: totalRevenueResult._sum.total || 0,
-        recentOrders
+        stats: {
+          totalOrders,
+          totalRevenue: totalRevenue._sum.total || 0,
+          totalProducts,
+          totalUsers,
+          pendingOrders,
+          processingOrders,
+          shippedOrders,
+          deliveredOrders
+        },
+        recentOrders: recentOrders.map(order => ({
+          ...order,
+          items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+          shippingInfo: typeof order.shippingInfo === 'string' ? JSON.parse(order.shippingInfo) : order.shippingInfo
+        })),
+        lowStockProducts
       }
     });
-
   } catch (error: any) {
-    console.error('Get order stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Помилка отримання статистики'
+    console.error('Get dashboard stats error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка отримання статистики' 
     });
   }
 };

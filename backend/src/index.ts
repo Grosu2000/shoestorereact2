@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
 import adminRoutes from './routes/admin.routes';
+import orderRoutes from './routes/order.routes';
+import paymentRoutes from './routes/payment.routes';
+import path from 'path'; // Додайте цей імпорт!
 
 dotenv.config();
 
@@ -42,6 +45,10 @@ app.use((req, res, next) => {
 // Маршрути
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => {
