@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useCartStore } from "../stores/cart-store";
 import { Button } from "../components/ui/Button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -11,15 +11,12 @@ export const CartPage: React.FC = () => {
     updateQuantity,
     removeItem,
     clearCart,
-    getTotalPrice,
-    getItemCount,
+    getTotalPrice
   } = useCartStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 300);
