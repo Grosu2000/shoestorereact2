@@ -19,7 +19,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10); // ✅ Исправлен
 const allowedOrigins = [
   'http://localhost:5173',
   'https://shoestorereactv2.onrender.com',
-  'https://shoestore-frontend.vercel.app',
+  'https://shoestore-frontend.onrender.com',
   process.env.FRONTEND_URL || 'http://localhost:5173'
 ].filter(Boolean);
 
