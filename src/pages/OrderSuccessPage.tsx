@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { useToast } from '../contexts/ToastContext';
 import { orderApi } from '../services/order.api';
-import type { Order, OrderItem } from '../services/order.api';
+import type { Order } from '../services/order.api';
 
 export const OrderSuccessPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();

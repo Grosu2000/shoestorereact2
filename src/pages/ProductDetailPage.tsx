@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ProductGallery } from "../components/product/ProductGallery";
-import { ReviewList } from "../components/review/ReviewList";
-import { ReviewForm } from "../components/review/ReviewForm";
 import { Button } from "../components/ui/Button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { useCartStore } from "../stores/cart-store";
