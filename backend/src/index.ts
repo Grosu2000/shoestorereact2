@@ -13,49 +13,116 @@ dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = parseInt(process.env.PORT || '3000', 10); // ✅ Исправлено
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
-// ✅ ПРАВИЛЬНЫЙ CORS
+// ✅ ОБНОВЛЕННЫЙ CORS - ДЕТАЛЬНАЯ НАСТРОЙКА
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:4173',
   'https://shoestorereactv2.onrender.com',
-  'https://shoestore-frontend.onrender.com',
+  'https://shoestore-frontend-relz.onrender.com',
+  'https://shoestore-frontend-relz.onrender.com/',
   process.env.FRONTEND_URL || 'http://localhost:5173'
 ].filter(Boolean);
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
+// Детальный CORS middleware
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Разрешить запросы без origin (серверные, curl и т.д.)
+    if (!origin) {
+      console.log('[CORS] Request without origin - allowing');
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.some(allowed => origin.includes(allowed))) {
+    console.log(`[CORS] Checking origin: ${origin}`);
+    console.log(`[CORS] Allowed origins: ${JSON.stringify(allowedOrigins)}`);
+    
+    // Проверяем точное соответствие или вхождение
+    const isAllowed = allowedOrigins.some(allowed => {
+      // Убираем слеши и протоколы для сравнения
+      const cleanOrigin = origin.replace(/\/$/, '').toLowerCase();
+      const cleanAllowed = allowed.replace(/\/$/, '').toLowerCase();
+      
+      // Проверяем точное соответствие или вхождение домена
+      return cleanOrigin === cleanAllowed || 
+             cleanOrigin.includes(cleanAllowed.replace(/https?:\/\//, ''));
+    });
+    
+    if (isAllowed) {
+      console.log(`[CORS] Origin ${origin} is allowed`);
       callback(null, true);
     } else {
-      console.log(`CORS blocked origin: ${origin}`);
-      callback(null, false);
+      console.warn(`[CORS] Origin ${origin} is NOT allowed`);
+      callback(new Error(`CORS not allowed for origin: ${origin}`));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Accept',
+    'X-Requested-With',
+    'X-CSRF-Token',
+    'Cache-Control'
+  ],
+  exposedHeaders: [
+    'Authorization',
+    'X-Total-Count',
+    'Content-Range'
+  ],
+  maxAge: 86400, // 24 часа
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
 
-app.options('*', cors());
-app.use(express.json());
+// Применяем CORS ко всем маршрутам
+app.use(cors(corsOptions));
 
-// Логгер
+// Специальный обработчик для OPTIONS (preflight)
+app.options('*', cors(corsOptions));
+
+// Добавляем CORS headers вручную для гарантии
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  if (origin && allowedOrigins.some(allowed => 
+    origin.includes(allowed.replace(/https?:\/\//, '').replace(/\/$/, ''))
+  )) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+  
+  next();
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Детальный логгер
 app.use((req, res, next) => {
   const start = Date.now();
+  console.log(`\n=== REQUEST ===`);
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.log(`Origin: ${req.headers.origin || 'none'}`);
+  console.log(`User-Agent: ${req.headers['user-agent']?.substring(0, 50)}...`);
   
   res.on('finish', () => {
     const duration = Date.now() - start;
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} (${duration}ms)`);
+    console.log(`CORS Headers Sent:`);
+    console.log(`- Allow-Origin: ${res.getHeader('access-control-allow-origin')}`);
+    console.log(`- Allow-Credentials: ${res.getHeader('access-control-allow-credentials')}`);
+    console.log(`=== END ===\n`);
   });
   
   next();
 });
 
-// Маршрути
+// Маршруты
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
@@ -63,10 +130,12 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-// Health check
+// Health check с детальной информацией
 app.get('/api/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    const productsCount = await prisma.product.count();
+    const usersCount = await prisma.user.count();
     
     res.json({ 
       status: 'OK', 
@@ -74,45 +143,97 @@ app.get('/api/health', async (req, res) => {
       service: 'ShoeStore API',
       version: '1.0.0',
       database: 'connected',
-      uptime: process.uptime()
+      uptime: process.uptime(),
+      stats: {
+        products: productsCount,
+        users: usersCount
+      },
+      cors: {
+        allowedOrigins,
+        currentOrigin: req.headers.origin || 'none'
+      }
     });
   } catch (error: any) {
+    console.error('[HEALTH CHECK ERROR]', error);
     res.status(500).json({
       status: 'ERROR',
       timestamp: new Date().toISOString(),
       error: 'Database connection failed',
-      details: error.message
+      details: error.message,
+      cors: {
+        allowedOrigins,
+        currentOrigin: req.headers.origin || 'none'
+      }
     });
   }
 });
 
-// 404
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'ShoeStore API',
+    version: '1.0.0',
+    docs: 'https://shoestorereactv2.onrender.com/api/health',
+    frontend: 'https://shoestore-frontend-relz.onrender.com'
+  });
+});
+
+// 404 с деталями
 app.use('*', (req, res) => {
+  console.warn(`[404] Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ 
     success: false,
     error: 'Route not found',
     path: req.originalUrl,
-    method: req.method
+    method: req.method,
+    timestamp: new Date().toISOString()
   });
 });
 
-// Обработчик ошибок
+// Глобальный обработчик ошибок
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('[ERROR]', error);
+  console.error('[GLOBAL ERROR]', {
+    error: error.message,
+    stack: error.stack,
+    path: req.path,
+    method: req.method,
+    origin: req.headers.origin
+  });
+  
+  // Если это CORS ошибка
+  if (error.message.includes('CORS')) {
+    return res.status(403).json({
+      success: false,
+      error: error.message,
+      allowedOrigins,
+      yourOrigin: req.headers.origin,
+      timestamp: new Date().toISOString()
+    });
+  }
   
   res.status(error.status || 500).json({
     success: false,
     error: error.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    timestamp: new Date().toISOString()
   });
 });
 
-// ✅ ИСПРАВЛЕННЫЙ ЗАПУСК СЕРВЕРА
+// Запуск сервера
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 CORS enabled for: ${allowedOrigins.join(', ')}`);
-  console.log(`⚙️ Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📊 Database URL: ${process.env.DATABASE_URL ? 'configured' : 'not configured'}`);
+  console.log(`
+==========================================
+🚀  ShoeStore API Server Started!
+==========================================
+📡  Port: ${PORT}
+🌍  Environment: ${process.env.NODE_ENV || 'development'}
+🔗  Backend URL: https://shoestorereactv2.onrender.com
+🎨  Frontend URL: https://shoestore-frontend-relz.onrender.com
+🔐  CORS Enabled for: 
+    ${allowedOrigins.map(o => `    • ${o}`).join('\n')}
+📊  Database: ${process.env.DATABASE_URL ? 'Configured' : 'NOT Configured!'}
+==========================================
+  `);
 });
 
 // Graceful shutdown
@@ -121,3 +242,5 @@ process.on('SIGTERM', async () => {
   await prisma.$disconnect();
   process.exit(0);
 });
+
+export default app;
