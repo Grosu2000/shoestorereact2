@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: shoestore-backend
+    env: node
+    rootDir: backend
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://localhost:xFMwhaLo6uTuUISvEW7jWEHLnxfTl6QP@dpg-d4ols649c44c73fj2irg-a.oregon-postgres.render.com/shoestore_msnd
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
