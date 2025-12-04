@@ -19,7 +19,14 @@ const corsOptions = {
   exposedHeaders: ['Authorization']
 };
 
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://ваш-фронтенд.vercel.app',
+    'https://ваш-фронтенд.vercel.app/' // на всякий случай
+  ],
+  credentials: true
+}));
 
 // Обробка preflight запитів
 app.options('*', cors(corsOptions));
