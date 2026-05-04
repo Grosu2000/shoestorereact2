@@ -7,14 +7,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Твоя палітра
         background: '#F6F6F6',
         text: '#4B4B4B',
         button: '#B4C6D4',
         accent: '#D8E2EB',
         success: '#8BC6A7',
         error: '#D97F7F',
-        // Додаткові відтінки
         'button-hover': '#9DB3C4',
         'button-active': '#86A0B4',
         'success-dark': '#6BA085',

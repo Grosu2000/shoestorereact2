@@ -9,7 +9,6 @@ async function createAdmin() {
     const password = 'admin123';
     const name = 'Admin User';
 
-    // Перевірка чи адмін вже існує
     const existingAdmin = await prisma.user.findUnique({
       where: { email }
     });

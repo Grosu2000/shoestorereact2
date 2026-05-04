@@ -72,7 +72,6 @@ export const ProductPage: React.FC = () => {
         <ProductGrid 
           category={category || undefined}
           brand={brand || undefined}
-          search={search || undefined}
         />
       </div>
     </div>
