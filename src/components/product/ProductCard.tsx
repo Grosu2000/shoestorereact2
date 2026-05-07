@@ -8,10 +8,10 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  console.log("ProductCard rendering:", product);
+  const images = product.images?.length ? product.images : ["/images/placeholder.jpg"];
+  const [currentImage, setCurrentImage] = useState(0);
+  const [isHovering, setIsHovering] = useState(false);
 
-  
-  const images = product.images || ["/images/placeholder.jpg"];
   const sizes = product.sizes || [];
   const colors = product.colors || [];
 
@@ -19,37 +19,63 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [selectedColor, setSelectedColor] = useState(colors[0] || "");
   const addItem = useCartStore((state) => state.addItem);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     addItem(product, selectedSize, selectedColor);
   };
 
   const availableSizes = sizes.filter((size) => size.stock > 0);
   const isAnySizeAvailable = availableSizes.length > 0;
 
-  
   const isNewProduct = product.createdAt
-    ? new Date(product.createdAt).getTime() >
-      Date.now() - 30 * 24 * 60 * 60 * 1000
+    ? new Date(product.createdAt).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000
     : false;
 
   const discountPercentage = product.originalPrice
-    ? Math.round(
-        ((product.originalPrice - product.price) / product.originalPrice) * 100
-      )
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
-  
-  const inStock =
-    product.inStock !== undefined ? product.inStock : isAnySizeAvailable;
+  const inStock = product.inStock !== undefined ? product.inStock : isAnySizeAvailable;
+
+  const handleMouseEnter = () => {
+    setIsHovering(true);
+    if (images.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentImage((prev) => (prev + 1) % images.length);
+      }, 800);
+      (window as any).__hoverInterval = interval;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovering(false);
+    setCurrentImage(0);
+    if ((window as any).__hoverInterval) {
+      clearInterval((window as any).__hoverInterval);
+    }
+  };
 
   return (
     <Link to={`/product/${product.id}`} className="block">
-      <div className="product-card card-hover group">
+      <div
+        className="product-card card-hover group"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <div className="product-image-container">
-          {/* ВИПРАВЛЕННЯ: беремо перше зображення з масиву */}
-          <img src={images[0]} alt={product.name} className="product-image" />
+          <img
+            src={images[currentImage]}
+            alt={product.name}
+            className="product-image"
+          />
 
-          {/* Бейджи */}
+          {images.length > 1 && (
+            <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded-full">
+              {currentImage + 1} / {images.length}
+            </div>
+          )}
+
           {discountPercentage > 0 && (
             <span className="discount-badge">-{discountPercentage}%</span>
           )}
@@ -105,32 +131,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           {availableSizes.length > 0 && (
-            <div className="space-y-3 mb-4">
+            <div className="space-y-3 mb-4" onClick={(e) => e.preventDefault()}>
               <div>
                 <label className="input-label">Розмір:</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {availableSizes.map((sizeInfo) => (
+                  {availableSizes.slice(0, 4).map((sizeInfo) => (
                     <button
                       key={sizeInfo.size}
-                      onClick={(e) => { e.preventDefault(); setSelectedSize(sizeInfo.size); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedSize(sizeInfo.size);
+                      }}
                       className={`px-3 py-1.5 text-sm rounded-lg border transition-all ${
                         selectedSize === sizeInfo.size
                           ? "bg-button text-text border-button font-medium"
                           : "bg-white border-accent text-text/70 hover:border-button hover:text-text"
-                      } ${sizeInfo.stock < 3 ? "relative" : ""}`}
-                      disabled={sizeInfo.stock === 0}
-                      title={
-                        sizeInfo.stock < 3
-                          ? `Залишилось: ${sizeInfo.stock} шт.`
-                          : ""
-                      }
+                      }`}
                     >
                       {sizeInfo.size}
-                      {sizeInfo.stock < 3 && sizeInfo.stock > 0 && (
-                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full"></span>
-                      )}
                     </button>
                   ))}
+                  {availableSizes.length > 4 && (
+                    <span className="px-3 py-1.5 text-sm text-text/50">
+                      +{availableSizes.length - 4}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -138,11 +163,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 <div>
                   <label className="input-label">Колір:</label>
                   <div className="flex flex-wrap gap-2">
-                    {colors.map((color) => (
+                    {colors.slice(0, 4).map((color) => (
                       <button
                         key={color}
-                        onClick={(e) => { e.preventDefault(); setSelectedColor(color); }}
-                        className={`w-8 h-8 rounded-full border-2 transition-transform ${
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectedColor(color);
+                        }}
+                        className={`w-7 h-7 rounded-full border-2 transition-transform ${
                           selectedColor === color
                             ? "border-button scale-110"
                             : "border-accent hover:scale-105"
@@ -151,6 +179,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         title={color}
                       />
                     ))}
+                    {colors.length > 4 && (
+                      <span className="text-xs text-text/50 flex items-center">
+                        +{colors.length - 4}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -159,24 +192,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
           <div className="flex items-center justify-between text-sm text-text/60 mb-4">
             <span>Доступно розмірів: {availableSizes.length}</span>
-            <span className="flex items-center">
-              <span className="w-2 h-2 rounded-full bg-success mr-1.5"></span>
-              {inStock && isAnySizeAvailable
-                ? "Готово до відправки"
-                : "Під замовлення"}
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-success"></span>
+              {inStock && isAnySizeAvailable ? "Готово" : "Немає"}
             </span>
           </div>
 
           <button
-            onClick={(e) => { e.preventDefault(); handleAddToCart(); }}
+            onClick={handleAddToCart}
             disabled={!inStock || !isAnySizeAvailable}
             className={`w-full ${
               inStock && isAnySizeAvailable ? "btn-primary" : "btn-secondary"
             }`}
           >
-            {inStock && isAnySizeAvailable
-              ? "Додати до кошика"
-              : "Повідомити про наявність"}
+            {inStock && isAnySizeAvailable ? "Додати до кошика" : "Немає"}
           </button>
         </div>
       </div>
@@ -196,8 +225,9 @@ function getColorHex(colorName: string): string {
     Коричневий: "#A52A2A",
     Бежевий: "#F5F5DC",
     Рожевий: "#FFC0CB",
-    Фіолетовий: "#800080", 
+    Фіолетовий: "#800080",
+    Салатовий: "#B7E0A0",
+    Бірюзовий: "#00CED1",
   };
-
   return colorMap[colorName] || "#D8E2EB";
 }
