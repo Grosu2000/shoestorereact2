@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ProductGallery } from "../components/product/ProductGallery";
 import { Button } from "../components/ui/Button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { useCartStore } from "../stores/cart-store";
@@ -12,14 +11,14 @@ export const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const addItem = useCartStore((state) => state.addItem);
 
-  console.log('🟢 ProductDetailPage завантажено з ID:', id);
-
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [mainImageLoaded, setMainImageLoaded] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -31,35 +30,31 @@ export const ProductDetailPage: React.FC = () => {
 
       try {
         setLoading(true);
-        console.log('📡 Запит товару:', id);
-        
-        
+        setMainImageLoaded(false);
         const response = await api.get<any>(`/products/${id}`);
-        console.log('📡 Відповідь API:', response);
-        
-        
+        let productData = null;
+
         if (response.data) {
-          console.log('✅ Товар знайдено:', response.data.name);
-          setProduct(response.data);
-        } 
-        
-        else if (response.id) {
-          console.log('✅ Товар знайдено (прямий об\'єкт):', response.name);
-          setProduct(response);
+          productData = response.data;
+        } else if (response.id) {
+          productData = response;
+        } else if (response.success && response.data) {
+          productData = response.data;
         }
-        
-        else if (response.success && response.data) {
-          console.log('✅ Товар знайдено (успіх):', response.data.name);
-          setProduct(response.data);
+
+        if (productData) {
+          setProduct(productData);
+          if (productData.sizes?.length) {
+            setSelectedSize(productData.sizes[0].size);
+          }
+          if (productData.colors?.length) {
+            setSelectedColor(productData.colors[0]);
+          }
+        } else {
+          setError("Товар не знайдено");
         }
-        else {
-          console.error('❌ Невідомий формат відповіді:', response);
-          setError("Невідомий формат відповіді від сервера");
-        }
-        
       } catch (err: any) {
-        console.error('💥 Помилка завантаження товару:', err);
-        setError(err.message || "Помилка при завантаженні товару");
+        setError(err.message || "Помилка завантаження товару");
       } finally {
         setLoading(false);
       }
@@ -68,23 +63,47 @@ export const ProductDetailPage: React.FC = () => {
     fetchProduct();
   }, [id]);
 
+  const handleAddToCart = () => {
+    if (!product) return;
+    if (!selectedSize) {
+      alert("Будь ласка, оберіть розмір");
+      return;
+    }
+    if (!selectedColor) {
+      alert("Будь ласка, оберіть колір");
+      return;
+    }
+    addItem(product, selectedSize, selectedColor, quantity);
+    alert("Товар додано до кошика!");
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    if (!selectedSize || !selectedColor) {
+      alert("Будь ласка, оберіть розмір і колір");
+      return;
+    }
+    addItem(product, selectedSize, selectedColor, quantity);
+    navigate("/cart");
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center p-8 max-w-md bg-white rounded-lg shadow">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center p-8 max-w-md bg-white rounded-lg shadow-soft">
+          <h1 className="text-2xl font-bold text-error mb-4">
             {error || "Товар не знайдено"}
           </h1>
-          <p className="text-gray-600 mb-6">
-            Не вдалося завантажити товар. Спробуйте пізніше.
+          <p className="text-text/70 mb-6">
+            Можливо, товар було видалено або посилання неправильне.
           </p>
           <Link to="/products">
             <Button>Повернутися до товарів</Button>
@@ -94,243 +113,187 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const handleAddToCart = () => {
-    if (!selectedSize || !selectedColor) {
-      alert("Будь ласка, оберіть розмір і колір");
-      return;
-    }
-
-    addItem(product, selectedSize, selectedColor, quantity);
-    alert("Товар додано до кошика!");
-  };
-
-  const handleBuyNow = () => {
-    if (!selectedSize || !selectedColor) {
-      alert("Будь ласка, оберіть розмір і колір");
-      return;
-    }
-
-    addItem(product, selectedSize, selectedColor, quantity);
-    navigate("/cart");
-  };
-
-  
   const sizes = product.sizes || [];
   const colors = product.colors || [];
-  const images = product.images || ['/images/placeholder.jpg'];
+  const images = product.images?.length ? product.images : ["/images/placeholder.jpg"];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Хлібні крихти */}
-        <nav className="flex mb-8" aria-label="Breadcrumb">
-          <ol className="flex items-center space-x-4">
-            <li>
-              <Link to="/" className="text-gray-400 hover:text-gray-500">
-                Головна
-              </Link>
-            </li>
-            <li>
-              <span className="text-gray-400">/</span>
-            </li>
-            <li>
-              <Link to="/products" className="text-gray-400 hover:text-gray-500">
-                Товари
-              </Link>
-            </li>
-            <li>
-              <span className="text-gray-400">/</span>
-            </li>
-            <li>
-              <span className="text-gray-900 font-medium">{product.name}</span>
-            </li>
+        <nav className="flex mb-8 text-sm">
+          <ol className="flex items-center space-x-2 text-text/60">
+            <li><Link to="/" className="hover:text-text">Головна</Link></li>
+            <li>/</li>
+            <li><Link to="/products" className="hover:text-text">Товари</Link></li>
+            <li>/</li>
+            <li className="text-text font-medium truncate">{product.name}</li>
           </ol>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Галерея зображень */}
-          <div>
-            <ProductGallery images={images} productName={product.name} />
+          {/* ГАЛЕРЕЯ ЗОБРАЖЕНЬ */}
+          <div className="space-y-4">
+            {/* Головне зображення */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-soft border border-accent">
+              <div className="aspect-square">
+                <img
+                  key={images[selectedImageIndex]}
+                  src={images[selectedImageIndex]}
+                  alt={product.name}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${mainImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  onLoad={() => setMainImageLoaded(true)}
+                />
+              </div>
+            </div>
+
+            {/* Мініатюри */}
+            {images.length > 1 && (
+              <div className="grid grid-cols-4 gap-3">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setSelectedImageIndex(idx);
+                      setMainImageLoaded(false);
+                    }}
+                    className={`bg-white rounded-xl overflow-hidden border-2 transition-all hover:opacity-80 ${
+                      selectedImageIndex === idx
+                        ? "border-button shadow-soft"
+                        : "border-accent opacity-70"
+                    }`}
+                  >
+                    <div className="aspect-square">
+                      <img src={img} alt={`${product.name} - фото ${idx + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Інформація про товар */}
+          {/* ІНФОРМАЦІЯ ПРО ТОВАР */}
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {product.name}
-              </h1>
-              <p className="text-lg text-gray-600 mt-2">{product.brand}</p>
+              <div className="text-sm text-text/60 mb-2">{product.brand}</div>
+              <h1 className="text-3xl font-bold text-text">{product.name}</h1>
             </div>
 
             {/* Ціна */}
-            <div className="flex items-center space-x-4">
-              <div className="text-3xl font-bold text-gray-900">
-                {product.price} грн
-              </div>
-              {product.originalPrice && product.originalPrice > product.price && (
-                <div className="text-xl text-gray-500 line-through">
-                  {product.originalPrice} грн
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="text-3xl font-bold text-text">{product.price} грн</div>
+              {product.originalPrice && (
+                <div className="text-lg text-text/40 line-through">{product.originalPrice} грн</div>
               )}
             </div>
 
-            {/* Рейтинг та наявність */}
-            <div className="flex items-center space-x-4">
+            {/* Рейтинг */}
+            <div className="flex items-center gap-4">
               <div className="flex items-center">
-                <div className="flex text-yellow-400">
+                <div className="flex text-amber-500">
                   {"★".repeat(Math.floor(product.rating || 0))}
                   {"☆".repeat(5 - Math.floor(product.rating || 0))}
                 </div>
-                <span className="ml-2 text-gray-600">
-                  ({product.reviewCount || 0} відгуків)
-                </span>
+                <span className="ml-2 text-text/60">({product.reviewCount || 0} відгуків)</span>
               </div>
-              <span
-                className={`px-2 py-1 text-sm rounded-full ${
-                  product.inStock
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {product.inStock ? "В наявності" : "Немає в наявності"}
+              <span className={`px-2 py-1 text-xs rounded-full bg-success/20 text-success-dark`}>
+                {product.inStock ? "В наявності" : "Немає"}
               </span>
             </div>
 
-            {/* Опис */}
-            <p className="text-gray-700 leading-relaxed">
-              {product.description}
-            </p>
+            <p className="text-text/80 leading-relaxed">{product.description}</p>
 
-            {/* Вибір розміру, кольору, кількості */}
-            <div className="space-y-4">
-              {/* Розміри */}
-              {sizes.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Розмір
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {sizes.map((sizeInfo) => (
-                      <button
-                        key={sizeInfo.size}
-                        onClick={() => setSelectedSize(sizeInfo.size)}
-                        disabled={sizeInfo.stock === 0}
-                        className={`px-4 py-2 border rounded-lg transition-colors ${
-                          selectedSize === sizeInfo.size
-                            ? "border-blue-500 bg-blue-50 text-blue-700"
-                            : sizeInfo.stock === 0
-                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                      >
-                        {sizeInfo.size}
-                        {sizeInfo.stock === 0 && " (немає)"}
-                        {sizeInfo.stock > 0 && sizeInfo.stock < 5 && ` (${sizeInfo.stock} шт.)`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Кольори */}
-              {colors.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Колір
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {colors.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setSelectedColor(color)}
-                        className={`px-4 py-2 border rounded-lg transition-colors ${
-                          selectedColor === color
-                            ? "border-blue-500 bg-blue-50 text-blue-700"
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                      >
-                        {color}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Кількість */}
+            {/* Вибір розміру */}
+            {sizes.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Кількість
-                </label>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center border border-gray-300 rounded-lg">
+                <label className="block text-sm font-medium text-text mb-2">Розмір</label>
+                <div className="flex flex-wrap gap-2">
+                  {sizes.map((sizeInfo) => (
                     <button
-                      onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                      className="px-3 py-2 text-gray-600 hover:bg-gray-100"
+                      key={sizeInfo.size}
+                      onClick={() => setSelectedSize(sizeInfo.size)}
+                      disabled={sizeInfo.stock === 0}
+                      className={`px-4 py-2 border rounded-lg transition-all ${
+                        selectedSize === sizeInfo.size
+                          ? "border-button bg-button/20 text-text font-medium"
+                          : sizeInfo.stock === 0
+                          ? "border-accent bg-accent/30 text-text/40 cursor-not-allowed"
+                          : "border-accent hover:border-button"
+                      }`}
                     >
-                      -
+                      {sizeInfo.size}
+                      {sizeInfo.stock === 0 && " (немає)"}
                     </button>
-                    <span className="px-4 py-2 text-gray-900">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity((prev) => prev + 1)}
-                      className="px-3 py-2 text-gray-600 hover:bg-gray-100"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    Залишилось: {product.stock || 0} шт.
-                  </span>
+                  ))}
                 </div>
+              </div>
+            )}
+
+            {/* Вибір кольору */}
+            {colors.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-text mb-2">Колір</label>
+                <div className="flex flex-wrap gap-3">
+                  {colors.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`px-4 py-2 rounded-lg border transition-all ${
+                        selectedColor === color
+                          ? "border-button bg-button/20 text-text"
+                          : "border-accent hover:border-button"
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Кількість */}
+            <div>
+              <label className="block text-sm font-medium text-text mb-2">Кількість</label>
+              <div className="flex items-center border border-accent rounded-lg w-fit">
+                <button
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  className="px-3 py-2 text-text hover:bg-accent rounded-l-lg transition"
+                >
+                  -
+                </button>
+                <span className="px-4 py-2 text-text min-w-[50px] text-center">{quantity}</span>
+                <button
+                  onClick={() => setQuantity((prev) => prev + 1)}
+                  className="px-3 py-2 text-text hover:bg-accent rounded-r-lg transition"
+                >
+                  +
+                </button>
               </div>
             </div>
 
-            {/* Кнопки дій */}
-            <div className="flex space-x-4">
-              <Button
-                onClick={handleAddToCart}
-                disabled={!product.inStock || !selectedSize || !selectedColor}
-                className="flex-1"
-              >
+            {/* Кнопки дії */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <Button onClick={handleAddToCart} className="flex-1" size="lg">
                 Додати до кошика
               </Button>
-              <Button
-                onClick={handleBuyNow}
-                disabled={!product.inStock || !selectedSize || !selectedColor}
-                variant="primary"
-                className="flex-1"
-              >
+              <Button onClick={handleBuyNow} variant="secondary" className="flex-1" size="lg">
                 Купити зараз
               </Button>
             </div>
 
             {/* Характеристики */}
-            {(product.brand || product.material || product.country || product.releaseYear) && (
-              <div className="border-t border-gray-200 pt-6">
+            {(product.material || product.country || product.releaseYear) && (
+              <div className="border-t border-accent pt-6">
                 <h3 className="text-lg font-semibold mb-4">Характеристики</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  {product.brand && (
-                    <div>
-                      <span className="font-medium text-gray-600">Бренд:</span>
-                      <span className="ml-2 text-gray-900">{product.brand}</span>
-                    </div>
-                  )}
                   {product.material && (
-                    <div>
-                      <span className="font-medium text-gray-600">Матеріал:</span>
-                      <span className="ml-2 text-gray-900">{product.material}</span>
-                    </div>
+                    <div><span className="text-text/60">Матеріал:</span> {product.material}</div>
                   )}
                   {product.country && (
-                    <div>
-                      <span className="font-medium text-gray-600">Країна:</span>
-                      <span className="ml-2 text-gray-900">{product.country}</span>
-                    </div>
+                    <div><span className="text-text/60">Країна:</span> {product.country}</div>
                   )}
                   {product.releaseYear && (
-                    <div>
-                      <span className="font-medium text-gray-600">Рік випуску:</span>
-                      <span className="ml-2 text-gray-900">{product.releaseYear}</span>
-                    </div>
+                    <div><span className="text-text/60">Рік випуску:</span> {product.releaseYear}</div>
                   )}
                 </div>
               </div>
