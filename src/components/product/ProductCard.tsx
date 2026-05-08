@@ -10,7 +10,6 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const images = product.images?.length ? product.images : ["/images/placeholder.jpg"];
   const [currentImage, setCurrentImage] = useState(0);
-  const [isHovering, setIsHovering] = useState(false);
 
   const sizes = product.sizes || [];
   const colors = product.colors || [];
@@ -39,7 +38,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const inStock = product.inStock !== undefined ? product.inStock : isAnySizeAvailable;
 
   const handleMouseEnter = () => {
-    setIsHovering(true);
     if (images.length > 1) {
       const interval = setInterval(() => {
         setCurrentImage((prev) => (prev + 1) % images.length);
@@ -49,7 +47,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   const handleMouseLeave = () => {
-    setIsHovering(false);
     setCurrentImage(0);
     if ((window as any).__hoverInterval) {
       clearInterval((window as any).__hoverInterval);
