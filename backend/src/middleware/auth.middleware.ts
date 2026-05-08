@@ -1,58 +1,74 @@
-
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key-change-in-production';
+export interface AuthRequest extends Request {
+  user?: any;
+}
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+// Blacklist токенів (в майбутньому можна зберігати в Redis)
+const tokenBlacklist = new Set<string>();
+
+export const addToBlacklist = (token: string) => {
+  tokenBlacklist.add(token);
+  // Автоматичне очищення через 7 днів
+  setTimeout(() => {
+    tokenBlacklist.delete(token);
+  }, 7 * 24 * 60 * 60 * 1000);
+};
+
+export const authMiddleware = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Токен не надано' 
-      });
-    }
+    const token = req.header('Authorization')?.replace('Bearer ', '');
 
-    const token = authHeader.split(' ')[1];
-    
     if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Токен не надано' 
+      return res.status(401).json({
+        success: false,
+        error: 'Доступ заборонено. Токен не надано',
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    
-    
-    (req as any).user = {
-      userId: decoded.userId,
-      email: decoded.email,
-      role: decoded.role
-    };
+    // Перевірка в blacklist
+    if (tokenBlacklist.has(token)) {
+      return res.status(401).json({
+        success: false,
+        error: 'Токен недійсний. Будь ласка, увійдіть знову',
+      });
+    }
 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.user = decoded;
     next();
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Токен закінчився' 
+      return res.status(401).json({
+        success: false,
+        error: 'Токен застарів. Будь ласка, увійдіть знову',
       });
     }
-    
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Недійсний токен' 
+      return res.status(401).json({
+        success: false,
+        error: 'Невірний токен',
       });
     }
-    
-    console.error('Auth middleware error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Помилка автентифікації' 
+    res.status(401).json({
+      success: false,
+      error: 'Помилка автентифікації',
     });
   }
+};
+
+// Middleware для перевірки ролі адміністратора
+export const adminMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user?.role !== 'ADMIN') {
+    return res.status(403).json({
+      success: false,
+      error: 'Доступ заборонено. Потрібні права адміністратора',
+    });
+  }
+  next();
 };

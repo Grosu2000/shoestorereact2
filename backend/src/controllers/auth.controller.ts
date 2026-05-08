@@ -1,20 +1,12 @@
 
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma';
+import { addToBlacklist } from '../middleware/auth.middleware';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key-change-in-production';
 
-
-const generateToken = (userId: string, email: string, role: string) => {
-  return jwt.sign(
-    { userId, email, role },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -53,21 +45,18 @@ export const register = async (req: Request, res: Response) => {
       }
     });
 
-    
-    const token = generateToken(user.id, user.email, user.role);
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const { password: _, ...userWithoutPassword } = user;
 
     res.status(201).json({
       success: true,
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          createdAt: user.createdAt
-        },
-        token
-      }
+      data: { user: userWithoutPassword, token },
+      message: 'Реєстрація успішна'
     });
   } catch (error: any) {
     console.error('Registration error:', error);
@@ -111,20 +100,18 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const token = generateToken(user.id, user.email, user.role);
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const { password: _, ...userWithoutPassword } = user;
 
     res.json({
       success: true,
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          createdAt: user.createdAt
-        },
-        token
-      }
+      data: { user: userWithoutPassword, token },
+      message: 'Вхід виконано успішно'
     });
   } catch (error: any) {
     console.error('Login error:', error);
@@ -137,11 +124,22 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
-  
-  res.json({ 
-    success: true, 
-    message: 'Успішний вихід з системи' 
-  });
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (token) {
+      addToBlacklist(token);
+    }
+    res.json({
+      success: true,
+      message: 'Вихід виконано успішно',
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Помилка виходу',
+    });
+  }
 };
 
 export const getProfile = async (req: Request, res: Response) => {
