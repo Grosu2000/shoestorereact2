@@ -1,5 +1,12 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+export const getImageUrl = (path: string | undefined) => {
+  if (!path) return '/images/placeholder.jpg';
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('/uploads')) return `${API_URL}${path}`;
+  return path;
+};
+
 const getAuthToken = () => {
   try {
     const authStorage = localStorage.getItem('auth-storage');

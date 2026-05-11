@@ -17,7 +17,42 @@ export const createOrder = async (req: Request, res: Response) => {
 
     const { items, shippingAddress, deliveryMethod, paymentMethod, total, notes } = req.body;
 
-    
+    // ОНОВЛЮЄМО СКЛАД ДЛЯ КОЖНОГО ТОВАРУ
+    for (const item of items) {
+      // Отримуємо поточний товар
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId }
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          error: `Товар ${item.productId} не знайдено`
+        });
+      }
+
+      // Оновлюємо розміри (зменшуємо кількість)
+      const currentSizes = product.sizes as any[];
+      const updatedSizes = currentSizes.map((size: any) => {
+        if (size.size === item.size) {
+          return { ...size, stock: Math.max(0, size.stock - item.quantity) };
+        }
+        return size;
+      });
+
+      // Оновлюємо загальний запас та статус
+      const totalStock = updatedSizes.reduce((sum: number, size: any) => sum + size.stock, 0);
+
+      await prisma.product.update({
+        where: { id: item.productId },
+        data: {
+          sizes: updatedSizes,
+          stock: totalStock,
+          inStock: totalStock > 0,
+        },
+      });
+    }
+
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     const order = await prisma.order.create({
@@ -37,7 +72,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
     console.log('Order created successfully:', order.id);
 
-    
+    // Очищуємо кошик
     await prisma.cartItem.deleteMany({
       where: { userId }
     });
@@ -63,6 +98,78 @@ export const createOrder = async (req: Request, res: Response) => {
   }
 };
 
+// Функція для скасування замовлення (повернення товарів на склад)
+export const cancelOrder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user?.userId;
+
+    const order = await prisma.order.findFirst({
+      where: { id, userId }
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Замовлення не знайдено'
+      });
+    }
+
+    if (order.status !== 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        error: 'Можна скасувати тільки замовлення в статусі "Очікує"'
+      });
+    }
+
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+
+    // Повертаємо товари на склад
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId }
+      });
+
+      if (product) {
+        const currentSizes = product.sizes as any[];
+        const updatedSizes = currentSizes.map((size: any) => {
+          if (size.size === item.size) {
+            return { ...size, stock: size.stock + item.quantity };
+          }
+          return size;
+        });
+
+        const totalStock = updatedSizes.reduce((sum: number, size: any) => sum + size.stock, 0);
+
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            sizes: updatedSizes,
+            stock: totalStock,
+            inStock: totalStock > 0,
+          },
+        });
+      }
+    }
+
+    await prisma.order.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
+    });
+
+    res.json({
+      success: true,
+      message: 'Замовлення скасовано. Товари повернуто на склад'
+    });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Помилка скасування замовлення'
+    });
+  }
+};
+
 export const getUserOrders = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
@@ -72,7 +179,6 @@ export const getUserOrders = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    
     const parsedOrders = orders.map(order => ({
       ...order,
       items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
@@ -111,7 +217,6 @@ export const getOrderById = async (req: Request, res: Response) => {
       });
     }
 
-    
     const parsedOrder = {
       ...order,
       items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
@@ -135,13 +240,17 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const userId = (req as any).user?.userId;
+    const userRole = (req as any).user?.role;
+
+    if (userRole !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: 'Доступ заборонено'
+      });
+    }
 
     const order = await prisma.order.update({
-      where: { 
-        id,
-        userId
-      },
+      where: { id },
       data: { status }
     });
 

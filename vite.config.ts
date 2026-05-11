@@ -32,8 +32,14 @@ export default defineConfig({
       }
     })
   ],
-    server: {
+  server: {
     open: true,
+    proxy: {
+      '/uploads': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port: 5173,

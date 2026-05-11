@@ -3,6 +3,8 @@ import type { Product } from "../../types/product";
 import { useCartStore } from "../../stores/cart-store";
 import { Link } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 interface ProductCardProps {
   product: Product;
 }
@@ -20,10 +22,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const addItem = useCartStore((state) => state.addItem);
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addItem(product, selectedSize, selectedColor);
-  };
+  e.preventDefault();
+  e.stopPropagation();
+  addItem(product, selectedSize, selectedColor, 1);
+};
 
   const availableSizes = sizes.filter((size) => size.stock > 0);
   const isAnySizeAvailable = availableSizes.length > 0;
@@ -65,9 +67,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       >
         <div className="product-image-container">
           <img
-            src={images[currentImage]}
+            src={`${API_URL}${images[0]}`}
             alt={product.name}
             className="product-image"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/images/placeholder.jpg';
+            }}
           />
 
           {images.length > 1 && (

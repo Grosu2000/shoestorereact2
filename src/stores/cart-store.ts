@@ -4,7 +4,7 @@ import type { Cart, CartItem, Product } from '../types/product';
 
 interface CartStore {
   cart: Cart;
-addItem: (product: Product, size: string, color: string, quantity?: number) => void
+  addItem: (product: Product, size: string, color: string, quantity?: number) => void;
   removeItem: (productId: string, size: string, color: string) => void;
   updateQuantity: (productId: string, size: string, color: string, quantity: number) => void;
   clearCart: () => void;
@@ -21,7 +21,7 @@ export const useCartStore = create<CartStore>()(
         itemCount: 0,
       },
 
-      addItem: (product, size, color) => {
+      addItem: (product, size, color, quantity = 1) => {
         set((state) => {
           const existingItemIndex = state.cart.items.findIndex(
             item => 
@@ -35,13 +35,13 @@ export const useCartStore = create<CartStore>()(
           if (existingItemIndex >= 0) {
             newItems = state.cart.items.map((item, index) =>
               index === existingItemIndex
-                ? { ...item, quantity: item.quantity + 1 }
+                ? { ...item, quantity: item.quantity + quantity }
                 : item
             );
           } else {
             const newItem: CartItem = {
               product,
-              quantity: 1,
+              quantity: quantity,
               selectedSize: size,
               selectedColor: color,
             };

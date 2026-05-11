@@ -5,6 +5,8 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { useToast } from "../contexts/ToastContext";
 import { orderApi } from "../services/order.api";
 import type { Order, OrderItem } from "../services/order.api";
+import { getImageUrl } from '../utils/imageHelpers';
+
 
 export const OrderHistoryPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -237,7 +239,7 @@ export const OrderHistoryPage: React.FC = () => {
                       >
                         <div className="flex items-center space-x-4">
                           <img
-                            src={item.image || "/images/placeholder.jpg"}
+                            src={getImageUrl(item.image)}
                             alt={item.name}
                             className="w-16 h-16 object-cover rounded-lg"
                             onError={(e) => {

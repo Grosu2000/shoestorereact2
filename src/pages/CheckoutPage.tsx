@@ -10,6 +10,9 @@ import { orderApi } from '../services/order.api';
 import { paymentApi } from '../services/payment.api';
 import type { LiqPayConfig } from '../services/payment.api';
 import type { CreateOrderData } from '../services/order.api';
+import { getFirstImage } from '../utils/imageHelpers';
+
+
 interface CheckoutFormData {
   firstName: string;
   lastName: string;
@@ -59,7 +62,7 @@ export const CheckoutPage: React.FC = () => {
         quantity: item.quantity,
         size: item.selectedSize,
         color: item.selectedColor,
-        image: item.product.image || item.product.images?.[0] || '/images/placeholder.jpg'
+        image: getFirstImage(item.product.images)
       })),
       shippingAddress: {
         firstName: formData.firstName,

@@ -63,24 +63,57 @@ export const ProductDetailPage: React.FC = () => {
     fetchProduct();
   }, [id]);
 
+  const sizes = product?.sizes || [];
+  const colors = product?.colors || [];
+
+  // Знаходимо вибраний розмір та його залишок
+  const selectedSizeInfo = sizes.find((s: any) => s.size === selectedSize);
+  const maxAvailable = selectedSizeInfo?.stock || 0;
+
+  const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity < 1) return;
+    if (newQuantity > maxAvailable) {
+      alert(`Доступно лише ${maxAvailable} шт. цього розміру`);
+      return;
+    }
+    setQuantity(newQuantity);
+  };
+
+  const handleSizeChange = (size: string) => {
+    setSelectedSize(size);
+    setQuantity(1);
+  };
+
   const handleAddToCart = () => {
     if (!product) return;
     if (!selectedSize) {
       alert("Будь ласка, оберіть розмір");
       return;
     }
-    if (!selectedColor) {
+    if (colors.length > 0 && !selectedColor) {
       alert("Будь ласка, оберіть колір");
       return;
     }
+    if (quantity > maxAvailable) {
+      alert(`Доступно лише ${maxAvailable} шт. цього розміру`);
+      return;
+    }
     addItem(product, selectedSize, selectedColor, quantity);
-    alert("Товар додано до кошика!");
+    alert(`Товар додано до кошика! (${quantity} шт.)`);
   };
 
   const handleBuyNow = () => {
     if (!product) return;
-    if (!selectedSize || !selectedColor) {
-      alert("Будь ласка, оберіть розмір і колір");
+    if (!selectedSize) {
+      alert("Будь ласка, оберіть розмір");
+      return;
+    }
+    if (colors.length > 0 && !selectedColor) {
+      alert("Будь ласка, оберіть колір");
+      return;
+    }
+    if (quantity > maxAvailable) {
+      alert(`Доступно лише ${maxAvailable} шт. цього розміру`);
       return;
     }
     addItem(product, selectedSize, selectedColor, quantity);
@@ -113,19 +146,24 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const sizes = product.sizes || [];
-  const colors = product.colors || [];
   const images = product.images?.length ? product.images : ["/images/placeholder.jpg"];
 
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Хлібні крихти */}
         <nav className="flex mb-8 text-sm">
           <ol className="flex items-center space-x-2 text-text/60">
-            <li><Link to="/" className="hover:text-text">Головна</Link></li>
+            <li>
+              <Link to="/" className="hover:text-text">
+                Головна
+              </Link>
+            </li>
             <li>/</li>
-            <li><Link to="/products" className="hover:text-text">Товари</Link></li>
+            <li>
+              <Link to="/products" className="hover:text-text">
+                Товари
+              </Link>
+            </li>
             <li>/</li>
             <li className="text-text font-medium truncate">{product.name}</li>
           </ol>
@@ -134,20 +172,18 @@ export const ProductDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* ГАЛЕРЕЯ ЗОБРАЖЕНЬ */}
           <div className="space-y-4">
-            {/* Головне зображення */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-soft border border-accent">
               <div className="aspect-square">
                 <img
                   key={images[selectedImageIndex]}
                   src={images[selectedImageIndex]}
                   alt={product.name}
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${mainImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${mainImageLoaded ? "opacity-100" : "opacity-0"}`}
                   onLoad={() => setMainImageLoaded(true)}
                 />
               </div>
             </div>
 
-            {/* Мініатюри */}
             {images.length > 1 && (
               <div className="grid grid-cols-4 gap-3">
                 {images.map((img, idx) => (
@@ -164,7 +200,11 @@ export const ProductDetailPage: React.FC = () => {
                     }`}
                   >
                     <div className="aspect-square">
-                      <img src={img} alt={`${product.name} - фото ${idx + 1}`} className="w-full h-full object-cover" />
+                      <img
+                        src={img}
+                        alt={`${product.name} - фото ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   </button>
                 ))}
@@ -179,50 +219,61 @@ export const ProductDetailPage: React.FC = () => {
               <h1 className="text-3xl font-bold text-text">{product.name}</h1>
             </div>
 
-            {/* Ціна */}
             <div className="flex items-center gap-3">
-              <div className="text-3xl font-bold text-text">{product.price} грн</div>
+              <div className="text-3xl font-bold text-text">
+                {product.price} грн
+              </div>
               {product.originalPrice && (
-                <div className="text-lg text-text/40 line-through">{product.originalPrice} грн</div>
+                <div className="text-lg text-text/40 line-through">
+                  {product.originalPrice} грн
+                </div>
               )}
             </div>
 
-            {/* Рейтинг */}
             <div className="flex items-center gap-4">
               <div className="flex items-center">
                 <div className="flex text-amber-500">
                   {"★".repeat(Math.floor(product.rating || 0))}
                   {"☆".repeat(5 - Math.floor(product.rating || 0))}
                 </div>
-                <span className="ml-2 text-text/60">({product.reviewCount || 0} відгуків)</span>
+                <span className="ml-2 text-text/60">
+                  ({product.reviewCount || 0} відгуків)
+                </span>
               </div>
-              <span className={`px-2 py-1 text-xs rounded-full bg-success/20 text-success-dark`}>
+              <span
+                className={`px-2 py-1 text-xs rounded-full bg-success/20 text-success-dark`}
+              >
                 {product.inStock ? "В наявності" : "Немає"}
               </span>
             </div>
 
-            <p className="text-text/80 leading-relaxed">{product.description}</p>
+            <p className="text-text/80 leading-relaxed">
+              {product.description}
+            </p>
 
             {/* Вибір розміру */}
             {sizes.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-text mb-2">Розмір</label>
+                <label className="block text-sm font-medium text-text mb-2">
+                  Розмір
+                </label>
                 <div className="flex flex-wrap gap-2">
-                  {sizes.map((sizeInfo) => (
+                  {sizes.map((sizeInfo: any) => (
                     <button
                       key={sizeInfo.size}
-                      onClick={() => setSelectedSize(sizeInfo.size)}
+                      onClick={() => handleSizeChange(sizeInfo.size)}
                       disabled={sizeInfo.stock === 0}
                       className={`px-4 py-2 border rounded-lg transition-all ${
                         selectedSize === sizeInfo.size
                           ? "border-button bg-button/20 text-text font-medium"
                           : sizeInfo.stock === 0
-                          ? "border-accent bg-accent/30 text-text/40 cursor-not-allowed"
-                          : "border-accent hover:border-button"
+                            ? "border-accent bg-accent/30 text-text/40 cursor-not-allowed"
+                            : "border-accent hover:border-button"
                       }`}
                     >
                       {sizeInfo.size}
                       {sizeInfo.stock === 0 && " (немає)"}
+                      {sizeInfo.stock > 0 && sizeInfo.stock < 5 && ` (лише ${sizeInfo.stock})`}
                     </button>
                   ))}
                 </div>
@@ -232,9 +283,11 @@ export const ProductDetailPage: React.FC = () => {
             {/* Вибір кольору */}
             {colors.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-text mb-2">Колір</label>
+                <label className="block text-sm font-medium text-text mb-2">
+                  Колір
+                </label>
                 <div className="flex flex-wrap gap-3">
-                  {colors.map((color) => (
+                  {colors.map((color: string) => (
                     <button
                       key={color}
                       onClick={() => setSelectedColor(color)}
@@ -251,33 +304,60 @@ export const ProductDetailPage: React.FC = () => {
               </div>
             )}
 
-            {/* Кількість */}
+            {/* Кількість з обмеженням */}
             <div>
-              <label className="block text-sm font-medium text-text mb-2">Кількість</label>
-              <div className="flex items-center border border-accent rounded-lg w-fit">
-                <button
-                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                  className="px-3 py-2 text-text hover:bg-accent rounded-l-lg transition"
-                >
-                  -
-                </button>
-                <span className="px-4 py-2 text-text min-w-[50px] text-center">{quantity}</span>
-                <button
-                  onClick={() => setQuantity((prev) => prev + 1)}
-                  className="px-3 py-2 text-text hover:bg-accent rounded-r-lg transition"
-                >
-                  +
-                </button>
+              <label className="block text-sm font-medium text-text mb-2">
+                Кількість
+              </label>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center border border-accent rounded-lg">
+                  <button
+                    onClick={() => handleQuantityChange(quantity - 1)}
+                    className="px-3 py-2 text-text hover:bg-accent rounded-l-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={quantity <= 1}
+                  >
+                    -
+                  </button>
+                  <span className="px-4 py-2 text-text min-w-[50px] text-center">
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={() => handleQuantityChange(quantity + 1)}
+                    className="px-3 py-2 text-text hover:bg-accent rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={quantity >= maxAvailable}
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="text-sm text-text/60">
+                  Доступно: {maxAvailable} шт.
+                </span>
               </div>
+              {maxAvailable < 5 && maxAvailable > 0 && (
+                <p className="text-xs text-error mt-1">
+                  Увага! Залишилось лише {maxAvailable} шт.
+                </p>
+              )}
             </div>
 
             {/* Кнопки дії */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button onClick={handleAddToCart} className="flex-1" size="lg">
-                Додати до кошика
+              <Button 
+                onClick={handleAddToCart} 
+                className="flex-1" 
+                size="lg"
+                disabled={maxAvailable === 0}
+              >
+                {maxAvailable === 0 ? "Немає в наявності" : "Додати до кошика"}
               </Button>
-              <Button onClick={handleBuyNow} variant="secondary" className="flex-1" size="lg">
-                Купити зараз
+              <Button
+                onClick={handleBuyNow}
+                variant="secondary"
+                className="flex-1"
+                size="lg"
+                disabled={maxAvailable === 0}
+              >
+                {maxAvailable === 0 ? "Немає в наявності" : "Купити зараз"}
               </Button>
             </div>
 
@@ -287,13 +367,22 @@ export const ProductDetailPage: React.FC = () => {
                 <h3 className="text-lg font-semibold mb-4">Характеристики</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   {product.material && (
-                    <div><span className="text-text/60">Матеріал:</span> {product.material}</div>
+                    <div>
+                      <span className="text-text/60">Матеріал:</span>{" "}
+                      {product.material}
+                    </div>
                   )}
                   {product.country && (
-                    <div><span className="text-text/60">Країна:</span> {product.country}</div>
+                    <div>
+                      <span className="text-text/60">Країна:</span>{" "}
+                      {product.country}
+                    </div>
                   )}
                   {product.releaseYear && (
-                    <div><span className="text-text/60">Рік випуску:</span> {product.releaseYear}</div>
+                    <div>
+                      <span className="text-text/60">Рік випуску:</span>{" "}
+                      {product.releaseYear}
+                    </div>
                   )}
                 </div>
               </div>

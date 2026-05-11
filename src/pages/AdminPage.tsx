@@ -286,11 +286,6 @@ export const AdminPage: React.FC = () => {
                 Товари
               </button>
             </div>
-            <div>
-              <Button onClick={() => setShowAddProductModal(true)} size="sm">
-                + Додати товар
-              </Button>
-            </div>
           </div>
         </div>
       </nav>
