@@ -2,15 +2,18 @@ import React, { useState } from "react";
 import type { Product } from "../../types/product";
 import { useCartStore } from "../../stores/cart-store";
 import { Link } from "react-router-dom";
+import { useCompareStore } from "../../stores/compare-store";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface ProductCardProps {
   product: Product;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const images = product.images?.length ? product.images : ["/images/placeholder.jpg"];
+  const images = product.images?.length
+    ? product.images
+    : ["/images/placeholder.jpg"];
   const [currentImage, setCurrentImage] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
 
@@ -21,24 +24,45 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [selectedColor, setSelectedColor] = useState(colors[0] || "");
   const addItem = useCartStore((state) => state.addItem);
 
+  const {
+    addItem: addToCompare,
+    removeItem: removeFromCompare,
+    isInCompare,
+  } = useCompareStore();
+  const isCompared = isInCompare(product.id);
+
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isCompared) {
+      removeFromCompare(product.id);
+    } else {
+      addToCompare(product);
+    }
+  };
+
   const handleAddToCart = (e: React.MouseEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  addItem(product, selectedSize, selectedColor, 1);
-};
+    e.preventDefault();
+    e.stopPropagation();
+    addItem(product, selectedSize, selectedColor, 1);
+  };
 
   const availableSizes = sizes.filter((size) => size.stock > 0);
   const isAnySizeAvailable = availableSizes.length > 0;
 
   const isNewProduct = product.createdAt
-    ? new Date(product.createdAt).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000
+    ? new Date(product.createdAt).getTime() >
+      Date.now() - 30 * 24 * 60 * 60 * 1000
     : false;
 
   const discountPercentage = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(
+        ((product.originalPrice - product.price) / product.originalPrice) * 100,
+      )
     : 0;
 
-  const inStock = product.inStock !== undefined ? product.inStock : isAnySizeAvailable;
+  const inStock =
+    product.inStock !== undefined ? product.inStock : isAnySizeAvailable;
 
   const handleMouseEnter = () => {
     setIsHovering(true);
@@ -71,7 +95,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             alt={product.name}
             className="product-image"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = '/images/placeholder.jpg';
+              (e.target as HTMLImageElement).src = "/images/placeholder.jpg";
             }}
           />
 
@@ -89,7 +113,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
           <span
             className={
-              inStock && isAnySizeAvailable ? "stock-badge" : "out-of-stock-badge"
+              inStock && isAnySizeAvailable
+                ? "stock-badge"
+                : "out-of-stock-badge"
             }
           >
             {inStock && isAnySizeAvailable ? "В наявності" : "Немає"}
@@ -194,6 +220,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               )}
             </div>
           )}
+
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleCompare}
+              className={`w-full py-2 rounded-lg text-sm font-medium transition-all ${
+                isCompared
+                  ? "bg-accent text-text/70 cursor-default"
+                  : "border border-accent text-text hover:border-button hover:bg-accent/30"
+              }`}
+            >
+              {isCompared ? "✓ У порівнянні" : "⇄ Порівняти"}
+            </button>
+          </div>
 
           <div className="flex items-center justify-between text-sm text-text/60 mb-4">
             <span>Доступно розмірів: {availableSizes.length}</span>

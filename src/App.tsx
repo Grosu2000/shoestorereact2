@@ -19,6 +19,8 @@ import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { useAuthStore } from "./stores/auth-store";
 import { useEffect, useCallback } from "react";
 import { OrderSuccessPage } from "./pages/OrderSuccessPage";
+import { ComparePage } from './pages/ComparePage';
+
 
 function App() {
   const cartItemCount = useCartStore((state) => state.cart.itemCount);
@@ -78,6 +80,8 @@ function App() {
                 <Route path="/product/:id" element={<ProductDetailPage />} />
                 <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
                 <Route path="*" element={<NotFoundPage />} />
+                <Route path="/compare" element={<ComparePage />} />
+
 
                 {/* Захищені маршрути */}
                 <Route
