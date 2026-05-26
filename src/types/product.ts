@@ -6,28 +6,27 @@ export interface ProductSize {
 export interface Product {
   id: string;
   name: string;
-  slug: string;
   price: number;
   originalPrice?: number;
+  image: string;
+  images: string[];
   description: string;
   category: string;
   brand: string;
-  sizes: Array<{ size: string; stock: number }>;
+  sizes: ProductSize[];
   colors: string[];
-  images: string[];
-  stock: number; 
+  colorStocks?: Array<{ color: string; stock: number }>;
+  variants?: Array<{ size: string; color: string; stock: number }>;  // ← ДОДАТИ СЮДИ
+  inStock: boolean;
+  stockQuantity: number;
   rating: number;
   reviewCount: number;
   features: string[];
-  material?: string;
-  releaseYear?: number;
-  country?: string;
-  inStock: boolean;
+  material: string;
+  releaseYear: number;
+  country: string;
   createdAt: string;
-  updatedAt: string;
-  
-  image?: string; 
-  stockQuantity?: number; 
+  updatedAt?: string;
 }
 
 export interface CartItem {

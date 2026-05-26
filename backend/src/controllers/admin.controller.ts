@@ -5,6 +5,7 @@ import path from 'path';
 
 const prisma = new PrismaClient();
 
+// ==================== ЗАМОВЛЕННЯ ====================
 
 export const getAllOrders = async (req: Request, res: Response) => {
   try {
@@ -64,6 +65,26 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   }
 };
 
+// ==================== ТОВАРИ (CRUD) ====================
+
+export const getAllProducts = async (req: Request, res: Response) => {
+  try {
+    const products = await prisma.product.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: { products }
+    });
+  } catch (error: any) {
+    console.error('Get all products error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Помилка отримання товарів' 
+    });
+  }
+};
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -76,15 +97,12 @@ export const createProduct = async (req: Request, res: Response) => {
       description, 
       category, 
       brand, 
-      sizes, 
-      colors, 
-      stock, 
+      variants, 
       material, 
       features 
     } = req.body;
 
     let images: string[] = [];
-    
     if (req.files && Array.isArray(req.files)) {
       images = (req.files as Express.Multer.File[]).map(file => 
         `/uploads/${file.filename}`
@@ -96,9 +114,22 @@ export const createProduct = async (req: Request, res: Response) => {
       .replace(/\s+/g, '-')
       .replace(/--+/g, '-');
 
-    const parsedSizes = sizes ? JSON.parse(sizes) : [];
-    const parsedColors = colors ? colors.split(',').map((c: string) => c.trim()) : [];
-    const parsedFeatures = features ? features.split(',').map((f: string) => f.trim()) : [];
+    // Парсимо варіації (розмір + колір + кількість)
+    let parsedVariants: { size: string; color: string; stock: number }[] = [];
+    try {
+      parsedVariants = variants ? JSON.parse(variants) : [];
+    } catch (e) {
+      parsedVariants = [];
+    }
+
+    // Розраховуємо загальну кількість
+    const totalStock = parsedVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
+
+    // Отримуємо унікальні розміри та кольори для зворотної сумісності
+    const uniqueSizes = [...new Set(parsedVariants.map(v => v.size))];
+    const uniqueColors = [...new Set(parsedVariants.map(v => v.color))];
+
+    const parsedFeatures = features ? features.split(',').map((f: string) => f.trim()).filter(Boolean) : [];
 
     const product = await prisma.product.create({
       data: {
@@ -108,13 +139,14 @@ export const createProduct = async (req: Request, res: Response) => {
         description,
         category,
         brand,
-        sizes: parsedSizes,
-        colors: parsedColors,
-        stock: parseInt(stock) || 0,
+        variants: parsedVariants,
+        sizes: uniqueSizes,
+        colors: uniqueColors,
+        stock: totalStock,
+        inStock: totalStock > 0,
         material: material || '',
         features: parsedFeatures,
         images,
-        inStock: parseInt(stock) > 0
       }
     });
 
@@ -138,17 +170,36 @@ export const createProduct = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updateData: any = req.body;
+    const updateData: any = { ...req.body };
 
+    // Оновлення ціни
     if (updateData.price) updateData.price = parseFloat(updateData.price);
-    if (updateData.stock) {
-      updateData.stock = parseInt(updateData.stock);
-      updateData.inStock = updateData.stock > 0;
-    }
-    if (updateData.sizes) updateData.sizes = JSON.parse(updateData.sizes);
-    if (updateData.colors) updateData.colors = updateData.colors.split(',').map((c: string) => c.trim());
-    if (updateData.features) updateData.features = updateData.features.split(',').map((f: string) => f.trim());
 
+    // Оновлення варіацій (розмір + колір + кількість)
+    if (updateData.variants) {
+      let parsedVariants = [];
+      try {
+        parsedVariants = JSON.parse(updateData.variants);
+      } catch (e) {
+        parsedVariants = [];
+      }
+      const totalStock = parsedVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      const uniqueSizes = [...new Set(parsedVariants.map(v => v.size))];
+      const uniqueColors = [...new Set(parsedVariants.map(v => v.color))];
+      
+      updateData.variants = parsedVariants;
+      updateData.sizes = uniqueSizes;
+      updateData.colors = uniqueColors;
+      updateData.stock = totalStock;
+      updateData.inStock = totalStock > 0;
+    }
+
+    // Оновлення особливостей
+    if (updateData.features && typeof updateData.features === 'string') {
+      updateData.features = updateData.features.split(',').map((f: string) => f.trim()).filter(Boolean);
+    }
+
+    // Додавання нових зображень
     if (req.files && Array.isArray(req.files)) {
       const newImages = (req.files as Express.Multer.File[]).map(file => 
         `/uploads/${file.filename}`
@@ -217,25 +268,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
   }
 };
 
-export const getAllProducts = async (req: Request, res: Response) => {
-  try {
-    const products = await prisma.product.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-
-    res.json({
-      success: true,
-      data: { products }
-    });
-  } catch (error: any) {
-    console.error('Get all products error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Помилка отримання товарів' 
-    });
-  }
-};
-
+// ==================== СТАТИСТИКА ====================
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {

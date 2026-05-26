@@ -6,11 +6,22 @@ import { useCartStore } from "../stores/cart-store";
 import { api } from "../services/api";
 import type { Product } from "../types/product";
 import { useCompareStore } from "../stores/compare-store";
+import { ReviewList } from "../components/review/ReviewList";
+import { ReviewForm } from "../components/review/ReviewForm";
+import { useToast } from "../contexts/ToastContext";
+
+interface Variant {
+  size: string;
+  color: string;
+  stock: number;
+}
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const addItem = useCartStore((state) => state.addItem);
+  const cartItems = useCartStore((state) => state.cart.items);
   const { addItem: addToCompare, removeItem: removeFromCompare, isInCompare } = useCompareStore();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -22,13 +33,26 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [mainImageLoaded, setMainImageLoaded] = useState(false);
 
-  // Обчислювальні значення (після всіх хукiв)
-  const isCompared = product ? isInCompare(product.id) : false;
-  const sizes = product?.sizes || [];
-  const colors = product?.colors || [];
-  const selectedSizeInfo = sizes.find((s: any) => s.size === selectedSize);
-  const maxAvailable = selectedSizeInfo?.stock || 0;
+  const variants: Variant[] = product?.variants || [];
+  const uniqueSizes = [...new Set(variants.map((v: Variant) => v.size))];
+  const uniqueColors = [...new Set(variants.map((v: Variant) => v.color))];
+  
+  const selectedVariant = variants.find((v: Variant) => v.size === selectedSize && v.color === selectedColor);
+  const maxAvailable = selectedVariant?.stock || 0;
+  
   const images = product?.images?.length ? product.images : ["/images/placeholder.jpg"];
+  const isCompared = product ? isInCompare(product.id) : false;
+
+  // Отримуємо кількість вже в кошику для вибраної комбінації
+  const getCurrentQuantityInCart = () => {
+    if (!product) return 0;
+    const existingItem = cartItems.find(
+      item => item.product.id === product.id && 
+              item.selectedSize === selectedSize && 
+              item.selectedColor === selectedColor
+    );
+    return existingItem?.quantity || 0;
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -54,11 +78,9 @@ export const ProductDetailPage: React.FC = () => {
 
         if (productData) {
           setProduct(productData);
-          if (productData.sizes?.length) {
-            setSelectedSize(productData.sizes[0].size);
-          }
-          if (productData.colors?.length) {
-            setSelectedColor(productData.colors[0]);
+          if (productData.variants?.length) {
+            setSelectedSize(productData.variants[0].size);
+            setSelectedColor(productData.variants[0].color);
           }
         } else {
           setError("Товар не знайдено");
@@ -75,8 +97,9 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) return;
-    if (newQuantity > maxAvailable) {
-      alert(`Доступно лише ${maxAvailable} шт. цього розміру`);
+    const currentInCart = getCurrentQuantityInCart();
+    if (newQuantity + currentInCart > maxAvailable) {
+      showToast(`Ви не можете додати більше ${maxAvailable} шт. цього товару (в кошику вже ${currentInCart})`, "error");
       return;
     }
     setQuantity(newQuantity);
@@ -84,6 +107,15 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleSizeChange = (size: string) => {
     setSelectedSize(size);
+    const availableColors = variants.filter(v => v.size === size).map(v => v.color);
+    if (!availableColors.includes(selectedColor)) {
+      setSelectedColor(availableColors[0] || "");
+    }
+    setQuantity(1);
+  };
+
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
     setQuantity(1);
   };
 
@@ -91,43 +123,55 @@ export const ProductDetailPage: React.FC = () => {
     if (!product) return;
     if (isCompared) {
       removeFromCompare(product.id);
+      showToast("Товар видалено з порівняння", "info");
     } else {
       addToCompare(product);
+      showToast("Товар додано до порівняння", "success");
     }
   };
 
   const handleAddToCart = () => {
     if (!product) return;
     if (!selectedSize) {
-      alert("Будь ласка, оберіть розмір");
+      showToast("Будь ласка, оберіть розмір", "error");
       return;
     }
-    if (colors.length > 0 && !selectedColor) {
-      alert("Будь ласка, оберіть колір");
+    if (uniqueColors.length > 0 && !selectedColor) {
+      showToast("Будь ласка, оберіть колір", "error");
       return;
     }
-    if (quantity > maxAvailable) {
-      alert(`Доступно лише ${maxAvailable} шт. цього розміру`);
+    
+    const currentInCart = getCurrentQuantityInCart();
+    const totalAfterAdd = currentInCart + quantity;
+    
+    if (totalAfterAdd > maxAvailable) {
+      showToast(`Ви не можете додати більше ${maxAvailable} шт. цього товару (в кошику вже ${currentInCart})`, "error");
       return;
     }
+    
     addItem(product, selectedSize, selectedColor, quantity);
-    alert(`Товар додано до кошика! (${quantity} шт.)`);
+    showToast(`Товар додано до кошика! (${quantity} шт.)`, "success");
   };
 
   const handleBuyNow = () => {
     if (!product) return;
     if (!selectedSize) {
-      alert("Будь ласка, оберіть розмір");
+      showToast("Будь ласка, оберіть розмір", "error");
       return;
     }
-    if (colors.length > 0 && !selectedColor) {
-      alert("Будь ласка, оберіть колір");
+    if (uniqueColors.length > 0 && !selectedColor) {
+      showToast("Будь ласка, оберіть колір", "error");
       return;
     }
-    if (quantity > maxAvailable) {
-      alert(`Доступно лише ${maxAvailable} шт. цього розміру`);
+    
+    const currentInCart = getCurrentQuantityInCart();
+    const totalAfterAdd = currentInCart + quantity;
+    
+    if (totalAfterAdd > maxAvailable) {
+      showToast(`Ви не можете додати більше ${maxAvailable} шт. цього товару (в кошику вже ${currentInCart})`, "error");
       return;
     }
+    
     addItem(product, selectedSize, selectedColor, quantity);
     navigate("/cart");
   };
@@ -157,6 +201,12 @@ export const ProductDetailPage: React.FC = () => {
       </div>
     );
   }
+
+  const availableColorsForSize = variants
+    .filter(v => v.size === selectedSize)
+    .map(v => v.color);
+
+  const currentInCart = getCurrentQuantityInCart();
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -232,7 +282,7 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
                 <span className="ml-2 text-text/60">({product.reviewCount || 0} відгуків)</span>
               </div>
-              <span className={`px-2 py-1 text-xs rounded-full bg-success/20 text-success-dark`}>
+              <span className={`px-2 py-1 text-xs rounded-full ${product.inStock ? 'bg-success/20 text-success-dark' : 'bg-error/20 text-error'}`}>
                 {product.inStock ? "В наявності" : "Немає"}
               </span>
             </div>
@@ -240,50 +290,65 @@ export const ProductDetailPage: React.FC = () => {
             <p className="text-text/80 leading-relaxed">{product.description}</p>
 
             {/* Вибір розміру */}
-            {sizes.length > 0 && (
+            {uniqueSizes.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-text mb-2">Розмір</label>
                 <div className="flex flex-wrap gap-2">
-                  {sizes.map((sizeInfo: any) => (
-                    <button
-                      key={sizeInfo.size}
-                      onClick={() => handleSizeChange(sizeInfo.size)}
-                      disabled={sizeInfo.stock === 0}
-                      className={`px-4 py-2 border rounded-lg transition-all ${
-                        selectedSize === sizeInfo.size
-                          ? "border-button bg-button/20 text-text font-medium"
-                          : sizeInfo.stock === 0
-                            ? "border-accent bg-accent/30 text-text/40 cursor-not-allowed"
-                            : "border-accent hover:border-button"
-                      }`}
-                    >
-                      {sizeInfo.size}
-                      {sizeInfo.stock === 0 && " (немає)"}
-                      {sizeInfo.stock > 0 && sizeInfo.stock < 5 && ` (лише ${sizeInfo.stock})`}
-                    </button>
-                  ))}
+                  {uniqueSizes.map((size) => {
+                    const totalStockForSize = variants
+                      .filter(v => v.size === size)
+                      .reduce((sum, v) => sum + v.stock, 0);
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => handleSizeChange(size)}
+                        disabled={totalStockForSize === 0}
+                        className={`px-4 py-2 border rounded-lg transition-all ${
+                          selectedSize === size
+                            ? "border-button bg-button/20 text-text font-medium"
+                            : totalStockForSize === 0
+                              ? "border-accent bg-accent/30 text-text/40 cursor-not-allowed"
+                              : "border-accent hover:border-button"
+                        }`}
+                      >
+                        {size}
+                        {totalStockForSize === 0 && " (немає)"}
+                        {totalStockForSize > 0 && totalStockForSize < 5 && ` (лише ${totalStockForSize})`}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             {/* Вибір кольору */}
-            {colors.length > 0 && (
+            {uniqueColors.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-text mb-2">Колір</label>
                 <div className="flex flex-wrap gap-3">
-                  {colors.map((color: string) => (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedColor(color)}
-                      className={`px-4 py-2 rounded-lg border transition-all ${
-                        selectedColor === color
-                          ? "border-button bg-button/20 text-text"
-                          : "border-accent hover:border-button"
-                      }`}
-                    >
-                      {color}
-                    </button>
-                  ))}
+                  {uniqueColors.map((color) => {
+                    const isAvailableForSize = availableColorsForSize.includes(color);
+                    const stockForColor = variants
+                      .filter(v => v.color === color && v.size === selectedSize)
+                      .reduce((sum, v) => sum + v.stock, 0);
+                    return (
+                      <button
+                        key={color}
+                        onClick={() => handleColorChange(color)}
+                        disabled={!isAvailableForSize || stockForColor === 0}
+                        className={`px-4 py-2 rounded-lg border transition-all ${
+                          selectedColor === color
+                            ? "border-button bg-button/20 text-text"
+                            : !isAvailableForSize || stockForColor === 0
+                              ? "border-accent bg-accent/30 text-text/40 cursor-not-allowed"
+                              : "border-accent hover:border-button"
+                        }`}
+                      >
+                        {color}
+                        {stockForColor > 0 && stockForColor < 5 && ` (${stockForColor})`}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -304,12 +369,15 @@ export const ProductDetailPage: React.FC = () => {
                   <button
                     onClick={() => handleQuantityChange(quantity + 1)}
                     className="px-3 py-2 text-text hover:bg-accent rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={quantity >= maxAvailable}
+                    disabled={quantity + currentInCart >= maxAvailable}
                   >
                     +
                   </button>
                 </div>
-                <span className="text-sm text-text/60">Доступно: {maxAvailable} шт.</span>
+                <span className="text-sm text-text/60">
+                  Доступно: {maxAvailable} шт.
+                  {currentInCart > 0 && ` (в кошику: ${currentInCart})`}
+                </span>
               </div>
               {maxAvailable < 5 && maxAvailable > 0 && (
                 <p className="text-xs text-error mt-1">Увага! Залишилось лише {maxAvailable} шт.</p>
@@ -321,8 +389,8 @@ export const ProductDetailPage: React.FC = () => {
               <Button onClick={handleCompare} variant="outline" className="flex-1" size="lg">
                 {isCompared ? "✓ У порівнянні" : "⇄ Порівняти"}
               </Button>
-              <Button onClick={handleAddToCart} className="flex-1" size="lg" disabled={maxAvailable === 0}>
-                {maxAvailable === 0 ? "Немає в наявності" : "Додати до кошика"}
+              <Button onClick={handleAddToCart} className="flex-1" size="lg" disabled={maxAvailable === 0 || currentInCart >= maxAvailable}>
+                {maxAvailable === 0 ? "Немає в наявності" : currentInCart >= maxAvailable ? "Максимум у кошику" : "Додати до кошика"}
               </Button>
               <Button onClick={handleBuyNow} variant="secondary" className="flex-1" size="lg" disabled={maxAvailable === 0}>
                 {maxAvailable === 0 ? "Немає в наявності" : "Купити зараз"}
@@ -340,6 +408,12 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* ВІДГУКИ */}
+            <div className="mt-12 border-t border-accent pt-8">
+              <ReviewList productId={product.id} />
+              <ReviewForm productId={product.id} onSuccess={() => {}} />
+            </div>
           </div>
         </div>
       </div>

@@ -13,34 +13,19 @@ export interface Review {
   createdAt: string;
 }
 
-export interface ReviewsResponse {
-  success: boolean;
-  data: {
-    reviews: Review[];
-    averageRating: number;
-    totalReviews: number;
-  };
-}
-
 export const reviewApi = {
-  getProductReviews: (productId: string) =>
-    api.get<ReviewsResponse>(`/products/${productId}/reviews`),
+  getByProduct: (productId: string) =>
+    api.get<{ data: { reviews: Review[]; averageRating: number; totalReviews: number } }>(`/products/${productId}/reviews`),
 
-  createReview: (productId: string, data: { rating: number; comment: string }) =>
-    api.post<{ success: boolean; data: Review; message: string }>(
-      `/products/${productId}/reviews`,
-      data
-    ),
+  create: (productId: string, data: { rating: number; comment: string }) =>
+    api.post<{ data: Review }>(`/products/${productId}/reviews`, data),
 
-  updateReview: (reviewId: string, data: { rating: number; comment: string }) =>
-    api.put<{ success: boolean; data: Review }>(`/reviews/${reviewId}`, data),
+  update: (reviewId: string, data: { rating: number; comment: string }) =>
+    api.put<{ data: Review }>(`/reviews/${reviewId}`, data),
 
-  deleteReview: (reviewId: string) =>
+  delete: (reviewId: string) =>
     api.delete(`/reviews/${reviewId}`),
 
-  likeReview: (reviewId: string, type: 'like' | 'dislike') =>
-    api.post<{ success: boolean; data: { likes: number; dislikes: number } }>(
-      `/reviews/${reviewId}/like`,
-      { type }
-    ),
+  like: (reviewId: string, type: 'like' | 'dislike') =>
+    api.post<{ data: { likes: number; dislikes: number } }>(`/reviews/${reviewId}/like`, { type }),
 };

@@ -17,10 +17,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
 
-  const sizes = product.sizes || [];
+  const variants = product.variants || [];
   const colors = product.colors || [];
 
-  const [selectedSize, setSelectedSize] = useState(sizes[0]?.size || "");
+  // Отримуємо унікальні розміри з variants
+  const uniqueSizes = [...new Set(variants.map((v: any) => v.size))];
+
+  const [selectedSize, setSelectedSize] = useState(uniqueSizes[0] || "");
   const [selectedColor, setSelectedColor] = useState(colors[0] || "");
   const addItem = useCartStore((state) => state.addItem);
 
@@ -47,8 +50,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     addItem(product, selectedSize, selectedColor, 1);
   };
 
-  const availableSizes = sizes.filter((size) => size.stock > 0);
-  const isAnySizeAvailable = availableSizes.length > 0;
+  const availableVariants = variants.filter((v: any) => v.stock > 0);
+  const isAnySizeAvailable = availableVariants.length > 0;
+
+  // Для вибору розміру в картці
+  const sizesList = uniqueSizes.map(size => ({
+    size,
+    stock: variants.filter((v: any) => v.size === size).reduce((sum, v) => sum + v.stock, 0)
+  })).filter(s => s.stock > 0);
 
   const isNewProduct = product.createdAt
     ? new Date(product.createdAt).getTime() >
@@ -161,12 +170,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           </div>
 
-          {availableSizes.length > 0 && (
+          {sizesList.length > 0 && (
             <div className="space-y-3 mb-4" onClick={(e) => e.preventDefault()}>
               <div>
                 <label className="input-label">Розмір:</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {availableSizes.slice(0, 4).map((sizeInfo) => (
+                  {sizesList.slice(0, 4).map((sizeInfo) => (
                     <button
                       key={sizeInfo.size}
                       onClick={(e) => {
@@ -182,9 +191,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                       {sizeInfo.size}
                     </button>
                   ))}
-                  {availableSizes.length > 4 && (
+                  {sizesList.length > 4 && (
                     <span className="px-3 py-1.5 text-sm text-text/50">
-                      +{availableSizes.length - 4}
+                      +{sizesList.length - 4}
                     </span>
                   )}
                 </div>
@@ -235,7 +244,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           <div className="flex items-center justify-between text-sm text-text/60 mb-4">
-            <span>Доступно розмірів: {availableSizes.length}</span>
+            <span>Доступно розмірів: {sizesList.length}</span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-success"></span>
               {inStock && isAnySizeAvailable ? "Готово" : "Немає"}

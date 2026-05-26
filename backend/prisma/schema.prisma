@@ -23,29 +23,30 @@ model User {
 }
 
 model Product {
-  id            String     @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String
-  slug          String     @unique
+  slug          String   @unique
   price         Float
   originalPrice Float?
   description   String
   category      String
   brand         String
-  sizes         Json
-  colors        String[]
+  sizes         Json      
+  colors        Json      
+  variants      Json     @default("[]")
   images        String[]
-  stock         Int        @default(0)
-  rating        Float      @default(0)
-  reviewCount   Int        @default(0)
+  stock         Int      @default(0)
+  rating        Float    @default(0)
+  reviewCount   Int      @default(0)
   features      String[]
   material      String?
   releaseYear   Int?
   country       String?
-  inStock       Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  isFeatured    Boolean    @default(false)
-  isNew         Boolean    @default(false)
+  inStock       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  isFeatured    Boolean  @default(false)
+  isNew         Boolean  @default(false)
   cartItems     CartItem[]
   reviews       Review[]
 

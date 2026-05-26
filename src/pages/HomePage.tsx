@@ -1,8 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ProductGrid } from '../components/product/ProductGrid';
+import { api } from '../services/api';
+import type { Product } from '../types/product';
 
 export const HomePage: React.FC = () => {
+  const [newProducts, setNewProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchNewProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get<any>('/products');
+        const products = response.data || response;
+        
+        // Отримуємо товари, які додані за останні 30 днів
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const filtered = products.filter((product: Product) => {
+          if (!product.createdAt) return false;
+          const productDate = new Date(product.createdAt);
+          return productDate >= thirtyDaysAgo;
+        }).slice(0, 8);
+
+        setNewProducts(filtered);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        setNewProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNewProducts();
+  }, []);
+
   return (
     <div className="min-h-screen">
       {/* Hero секція - оновлений стиль */}
@@ -30,7 +64,7 @@ export const HomePage: React.FC = () => {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           <Link
-            to="/products?category=sneakers"
+            to="/products?category=Кросівки"
             className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all hover:-translate-y-1"
           >
             <div className="h-48 bg-accent flex items-center justify-center text-4xl text-text">
@@ -43,7 +77,7 @@ export const HomePage: React.FC = () => {
           </Link>
 
           <Link
-            to="/products?category=boots"
+            to="/products?category=Черевики"
             className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all hover:-translate-y-1"
           >
             <div className="h-48 bg-accent flex items-center justify-center text-4xl text-text">
@@ -56,7 +90,7 @@ export const HomePage: React.FC = () => {
           </Link>
 
           <Link
-            to="/products?category=outdoor"
+            to="/products?category=Трекінг"
             className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all hover:-translate-y-1"
           >
             <div className="h-48 bg-accent flex items-center justify-center text-4xl text-text">
@@ -82,7 +116,7 @@ export const HomePage: React.FC = () => {
           </Link>
         </div>
 
-        <ProductGrid limit={8} />
+        <ProductGrid products={newProducts} />
 
         {/* Банер з перевагами */}
         <div className="bg-accent rounded-3xl py-12 px-6 md:px-12 my-16">
