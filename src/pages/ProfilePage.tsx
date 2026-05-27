@@ -1,550 +1,260 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/auth-store';
 import { useToast } from '../contexts/ToastContext';
-import { apiService } from '../services/api'; // ✅ Добавлен импорт
+import { api } from '../services/api';
 
-// Интерфейсы остаются без изменений
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  createdAt: string;
-  updatedAt: string;
-  avatar?: string;
-}
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  total: number;
-  status: string;
-  createdAt: string;
-}
-
-interface ApiResponse<T = any> {
+interface UpdateProfileResponse {
   success: boolean;
-  data: T;
-  message?: string;
-  error?: string;
+  data: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  };
 }
 
-interface ProfileData extends User {
-  orderCount: number;
-  totalSpent: number;
-  recentOrders: Order[];
-}
+export const ProfilePage = () => {
+  const { user, updateUser, logout } = useAuthStore();
+  const { showToast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-// ❌ УДАЛЕНО: const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-// ❌ УДАЛЯЕМ старый userApi и заменяем на apiService
-/* 
-export const userApi = {
-  // УДАЛЯЕМ все методы - используем apiService
-};
-*/
-
-// ✅ Используем существующий apiService из api.ts
-export const userApi = {
-  // Используем методы из apiService
-  getProfile: async (): Promise<ApiResponse<ProfileData>> => {
-    try {
-      // Используем apiService вместо прямого fetch
-      const response = await apiService.getProfile();
-      
-      // Приводим ответ к нужному формату
-      if (response && typeof response === 'object') {
-        // Если ответ уже в формате ApiResponse
-        if ('success' in response) {
-          return response as ApiResponse<ProfileData>;
-        }
-        // Если ответ - просто данные
-        return {
-          success: true,
-          data: response as ProfileData
-        };
-      }
-      
-      throw new Error('Invalid response format');
-    } catch (error: any) {
-      console.error('Profile API error:', error);
-      throw error;
-    }
-  },
-
-  updateProfile: async (data: { name: string; email: string }): Promise<ApiResponse<User>> => {
-    try {
-      const response = await apiService.updateProfile(data);
-      
-      if (response && typeof response === 'object') {
-        if ('success' in response) {
-          return response as ApiResponse<User>;
-        }
-        return {
-          success: true,
-          data: response as User
-        };
-      }
-      
-      throw new Error('Invalid response format');
-    } catch (error: any) {
-      console.error('Update profile error:', error);
-      throw error;
-    }
-  },
-
-  changePassword: async (data: {
-  currentPassword: string;
-  newPassword: string;
-}): Promise<ApiResponse<void>> => {
-  try {
-    const { api } = await import('../services/api');
-    await api.put('/auth/change-password', data);
-    
-    return {
-      success: true,
-      data: undefined as any,
-    };
-  } catch (error: any) {
-    console.error('Change password error:', error);
-    throw error;
-  }
-},
-};
-
-// Компоненты ProfileForm, PasswordForm, OrderHistory остаются без изменений
-const ProfileForm = ({
-  profile,
-  onSubmit,
-  onCancel,
-  isSubmitting,
-}: {
-  profile: User | null;
-  onSubmit: (data: { name: string; email: string }) => void;
-  onCancel: () => void;
-  isSubmitting: boolean;
-}) => {
   const [formData, setFormData] = useState({
-    name: profile?.name || '',
-    email: profile?.email || '',
+    name: user?.name || '',
+    email: user?.email || '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Ім'я
-        </label>
-        <input
-          type="text"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email
-        </label>
-        <input
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-      <div className="flex space-x-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? 'Збереження...' : 'Зберегти'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-        >
-          Скасувати
-        </button>
-      </div>
-    </form>
-  );
-};
-
-const PasswordForm = ({
-  onSubmit,
-  onCancel,
-  isSubmitting,
-  showToast,
-}: {
-  onSubmit: (data: { currentPassword: string; newPassword: string }) => void;
-  onCancel: () => void;
-  isSubmitting: boolean;
-  showToast: (message: string, type: 'success' | 'error') => void;
-}) => {
-  const [formData, setFormData] = useState({
+  const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.newPassword !== formData.confirmPassword) {
+    setLoading(true);
+    try {
+      const response = await api.put<UpdateProfileResponse>('/auth/profile', formData);
+      if (response.success && response.data) {
+        updateUser(response.data);
+        showToast('Профіль успішно оновлено', 'success');
+        setIsEditing(false);
+      }
+    } catch (error: any) {
+      showToast(error.message || 'Помилка оновлення профілю', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
       showToast('Нові паролі не співпадають', 'error');
       return;
     }
-    if (formData.newPassword.length < 6) {
-      showToast('Пароль повинен містити щонайменше 6 символів', 'error');
+    if (passwordData.newPassword.length < 6) {
+      showToast('Пароль повинен містити мінімум 6 символів', 'error');
       return;
     }
-    onSubmit({
-      currentPassword: formData.currentPassword,
-      newPassword: formData.newPassword,
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Поточний пароль
-        </label>
-        <input
-          type="password"
-          value={formData.currentPassword}
-          onChange={(e) =>
-            setFormData({ ...formData, currentPassword: e.target.value })
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Новий пароль
-        </label>
-        <input
-          type="password"
-          value={formData.newPassword}
-          onChange={(e) =>
-            setFormData({ ...formData, newPassword: e.target.value })
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Підтвердіть новий пароль
-        </label>
-        <input
-          type="password"
-          value={formData.confirmPassword}
-          onChange={(e) =>
-            setFormData({ ...formData, confirmPassword: e.target.value })
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-      <div className="flex space-x-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? 'Зміна...' : 'Змінити пароль'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-        >
-          Скасувати
-        </button>
-      </div>
-    </form>
-  );
-};
-
-const OrderHistory = ({ orders }: { orders: Order[] }) => {
-  return (
-    <div className="space-y-3">
-      {orders.map((order) => (
-        <div
-          key={order.id}
-          className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50"
-        >
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium">Замовлення #{order.orderNumber}</p>
-              <p className="text-sm text-gray-600">
-                {new Date(order.createdAt).toLocaleDateString('uk-UA')}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="font-bold">{order.total} грн</p>
-              <span
-                className={`inline-block px-2 py-1 text-xs rounded-full ${
-                  order.status === 'DELIVERED'
-                    ? 'bg-green-100 text-green-800'
-                    : order.status === 'PROCESSING'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-blue-100 text-blue-800'
-                }`}
-              >
-                {order.status === 'DELIVERED'
-                  ? 'Доставлено'
-                  : order.status === 'PROCESSING'
-                  ? 'Обробляється'
-                  : 'Нове'}
-              </span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-export const ProfilePage = () => {
-  const { user, updateUser } = useAuthStore();
-  const { showToast } = useToast();
-  const [isEditing, setIsEditing] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-
-  const {
-    data: profileData,
-    isLoading,
-    refetch,
-  } = useQuery({
-    queryKey: ['profile', user?.id],
-    queryFn: () => userApi.getProfile(),
-    enabled: !!user,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: userApi.updateProfile,
-    onSuccess: (data) => {
-      showToast('Профіль успішно оновлено', 'success');
-      if (updateUser && data.data) {
-        updateUser(data.data);
-      }
-      setIsEditing(false);
-      refetch();
-    },
-    onError: (error: any) => {
-      const errorMessage = typeof error === 'string' 
-        ? error 
-        : error?.message || 'Помилка оновлення профілю';
-      showToast(errorMessage, 'error');
-    },
-  });
-
-  const changePasswordMutation = useMutation({
-    mutationFn: userApi.changePassword,
-    onSuccess: () => {
+    setLoading(true);
+    try {
+      await api.put('/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
       showToast('Пароль успішно змінено', 'success');
       setIsChangingPassword(false);
-    },
-    onError: (error: any) => {
-      const errorMessage = typeof error === 'string'
-        ? error
-        : error?.message || 'Помилка зміни пароля';
-      showToast(errorMessage, 'error');
-    },
-  });
-
-  const handleUpdateProfile = (data: { name: string; email: string }) => {
-    updateMutation.mutate(data);
-  };
-
-  const handleChangePassword = (data: {
-    currentPassword: string;
-    newPassword: string;
-  }) => {
-    changePasswordMutation.mutate(data);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      showToast(error.message || 'Помилка зміни пароля', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <p className="text-lg text-red-600">Будь ласка, увійдіть в систему</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="md:col-span-2 space-y-4">
-                <div className="h-48 bg-gray-200 rounded"></div>
-                <div className="h-32 bg-gray-200 rounded"></div>
-              </div>
-              <div className="space-y-4">
-                <div className="h-40 bg-gray-200 rounded"></div>
-                <div className="h-32 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-3xl mx-auto px-4 text-center py-16">
+          <h1 className="text-2xl font-bold text-text mb-4">Увійдіть в акаунт</h1>
+          <p className="text-text/60 mb-8">Щоб переглянути профіль, потрібно увійти</p>
+          <a href="/login" className="bg-button text-text px-6 py-3 rounded-lg inline-block">Увійти</a>
         </div>
       </div>
     );
   }
 
-  const profile = profileData?.data || user;
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Мій профіль</h1>
+    <div className="min-h-screen bg-background py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <h1 className="text-2xl font-bold text-text mb-8">Мій профіль</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Ліва колонка - інформація */}
           <div className="md:col-span-2 space-y-6">
-            {isEditing ? (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">
-                  Редагування профілю
-                </h2>
-                <ProfileForm
-                  profile={profile}
-                  onSubmit={handleUpdateProfile}
-                  onCancel={() => setIsEditing(false)}
-                  isSubmitting={updateMutation.isPending}
-                />
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex justify-between items-start mb-6">
-                  <h2 className="text-xl font-semibold">Особиста інформація</h2>
+            {/* Особиста інформація */}
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Особиста інформація</h2>
+                {!isEditing && (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-4 py-2 bg-button text-text rounded-lg hover:bg-button-hover transition"
                   >
                     Редагувати
                   </button>
-                </div>
+                )}
+              </div>
 
+              {isEditing ? (
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1">Ім'я</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button type="submit" disabled={loading} className="btn-primary">
+                      {loading ? 'Збереження...' : 'Зберегти'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setFormData({ name: user.name, email: user.email });
+                      }}
+                      className="btn-secondary"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </form>
+              ) : (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-gray-600">Ім'я</label>
-                    <p className="font-medium text-lg">
-                      {profile?.name || 'Не вказано'}
-                    </p>
+                    <label className="text-sm text-text/60">Ім'я</label>
+                    <p className="font-medium text-text">{user.name}</p>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">Email</label>
-                    <p className="font-medium text-lg">{profile?.email}</p>
+                    <label className="text-sm text-text/60">Email</label>
+                    <p className="font-medium text-text">{user.email}</p>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">
-                      Дата реєстрації
-                    </label>
-                    <p className="font-medium">
-                      {profile?.createdAt
-                        ? new Date(profile.createdAt).toLocaleDateString('uk-UA')
-                        : 'Не вказано'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Роль</label>
-                    <p className="font-medium">
-                      {profile?.role === 'ADMIN' ? 'Адміністратор' : 'Користувач'}
-                    </p>
+                    <label className="text-sm text-text/60">Роль</label>
+                    <p className="font-medium text-text">{user.role === 'ADMIN' ? 'Адміністратор' : 'Користувач'}</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {isChangingPassword ? (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">Зміна пароля</h2>
-                <PasswordForm
-                  onSubmit={handleChangePassword}
-                  onCancel={() => setIsChangingPassword(false)}
-                  isSubmitting={changePasswordMutation.isPending}
-                  showToast={showToast}
-                />
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex justify-between items-start mb-6">
-                  <h2 className="text-xl font-semibold">Безпека</h2>
+            {/* Зміна пароля */}
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Безпека</h2>
+                {!isChangingPassword && (
                   <button
                     onClick={() => setIsChangingPassword(true)}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
                   >
                     Змінити пароль
                   </button>
-                </div>
-                <p className="text-gray-600">
-                  Остання зміна пароля: нещодавно
-                </p>
+                )}
               </div>
-            )}
+
+              {isChangingPassword ? (
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1">Поточний пароль</label>
+                    <input
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1">Новий пароль</label>
+                    <input
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1">Підтвердіть новий пароль</label>
+                    <input
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button type="submit" disabled={loading} className="btn-primary">
+                      {loading ? 'Зміна...' : 'Змінити пароль'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChangingPassword(false);
+                        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                      }}
+                      className="btn-secondary"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p className="text-text/60">Для безпеки рекомендуємо періодично змінювати пароль</p>
+              )}
+            </div>
           </div>
 
-          {/* Права колонка - статистика */}
+          {/* Статистика та дії */}
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
               <h2 className="text-xl font-semibold mb-4">Статистика</h2>
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600">Замовлень</p>
-                  <p className="text-2xl font-bold">
-                    {profileData?.data?.orderCount || 0}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Витрачено</p>
-                  <p className="text-2xl font-bold">
-                    {profileData?.data?.totalSpent
-                      ? `${profileData.data.totalSpent} грн`
-                      : '0 грн'}
-                  </p>
+                  <p className="text-sm text-text/60">Роль</p>
+                  <p className="text-2xl font-bold text-text">{user.role === 'ADMIN' ? '👑 Адмін' : '👤 Користувач'}</p>
                 </div>
               </div>
             </div>
 
-            {/* Недавні замовлення */}
-            {profileData?.data?.recentOrders &&
-              profileData.data.recentOrders.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Останні замовлення
-                  </h2>
-                  <OrderHistory orders={profileData.data.recentOrders} />
-                  <div className="mt-4 text-center">
-                    <a
-                      href="/orders"
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      Дивитися всі замовлення →
-                    </a>
-                  </div>
-                </div>
-              )}
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
+              <h2 className="text-xl font-semibold mb-4">Дії</h2>
+              <button
+                onClick={() => logout()}
+                className="w-full btn-secondary text-error hover:bg-error/10"
+              >
+                Вийти з акаунта
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
-
-export default ProfilePage;

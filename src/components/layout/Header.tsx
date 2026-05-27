@@ -185,7 +185,21 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                   </span>
                 )}
               </Link>
-
+              {user ? (
+                <>
+                  <Link to="/profile">
+                    <Button variant="outline" size="sm">
+                      Профіль
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <Link to="/login">
+                  <Button variant="outline" size="sm">
+                    Увійти
+                  </Button>
+                </Link>
+              )}
               {/* Авторизація */}
               {user ? (
                 <div className="flex items-center space-x-3">
@@ -198,9 +212,6 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                 </div>
               ) : (
                 <Link to="/login">
-                  <Button variant="outline" size="sm">
-                    Увійти
-                  </Button>
                 </Link>
               )}
             </div>
@@ -326,6 +337,9 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                 className="text-lg font-medium py-2 border-b border-accent"
               >
                 Кошик {cartItemCount > 0 && `(${cartItemCount})`}
+              </Link>
+              <Link to="/profile" onClick={closeMenu} className="text-lg font-medium py-2 border-b border-accent">
+                Профіль
               </Link>
             </nav>
 
