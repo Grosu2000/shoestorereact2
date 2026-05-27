@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../ui/Button";
 import { useAuthStore } from "../../stores/auth-store";
 import { useCompareStore } from "../../stores/compare-store";
+import { useWishlist } from "../../hooks/useWishlist";
 
 interface HeaderProps {
   cartItemCount?: number;
@@ -15,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const compareCount = useCompareStore((state) => state.getItemsCount());
+  const { items } = useWishlist();
+  const wishlistCount = items.length;
   const handleSearch = () => {
     if (searchQuery.trim()) {
       navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
@@ -134,14 +137,31 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                   </span>
                 )}
               </Link>
-              {/* Кошик */}
+              {/* Список бажаних */}
               <Link
-                to="/compare"
-                onClick={closeMenu}
-                className="text-lg font-medium py-2 border-b border-accent"
+                to="/wishlist"
+                className="relative p-2 hover:bg-accent rounded-full transition"
               >
-                Порівняння {compareCount > 0 && `(${compareCount})`}
+                <svg
+                  className="w-6 h-6 text-text"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-button text-text text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
+                    {wishlistCount > 99 ? "99+" : wishlistCount}
+                  </span>
+                )}
               </Link>
+              {/* Кошик */}
               <Link
                 to="/cart"
                 className="relative p-2 hover:bg-accent rounded-full transition"
@@ -286,6 +306,20 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                   Адмінка
                 </Link>
               )}
+              <Link
+                to="/compare"
+                onClick={closeMenu}
+                className="text-lg font-medium py-2 border-b border-accent"
+              >
+                Порівняння {compareCount > 0 && `(${compareCount})`}
+              </Link>
+              <Link
+                to="/wishlist"
+                onClick={closeMenu}
+                className="text-lg font-medium py-2 border-b border-accent"
+              >
+                Бажання {wishlistCount > 0 && `(${wishlistCount})`}
+              </Link>
               <Link
                 to="/cart"
                 onClick={closeMenu}

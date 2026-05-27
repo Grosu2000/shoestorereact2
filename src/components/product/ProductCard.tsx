@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import type { Product } from "../../types/product";
 import { useCartStore } from "../../stores/cart-store";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCompareStore } from "../../stores/compare-store";
+import { useWishlist } from "../../hooks/useWishlist";
+import { useAuthStore } from "../../stores/auth-store";
+import { useToast } from "../../contexts/ToastContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -15,7 +18,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? product.images
     : ["/images/placeholder.jpg"];
   const [currentImage, setCurrentImage] = useState(0);
-  const [isHovering, setIsHovering] = useState(false);
+    const [, setIsHovering] = useState(false);
+
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { showToast } = useToast();
+  const isWishlisted = isInWishlist(product.id);
 
   const variants = product.variants || [];
   const colors = product.colors || [];
@@ -41,6 +50,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       removeFromCompare(product.id);
     } else {
       addToCompare(product);
+    }
+  };
+
+  const handleWishlist = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      if (!user) {
+        showToast("Увійдіть, щоб додати до списку бажаних", "error");
+        navigate("/login");
+        return;
+      }
+
+      if (isWishlisted) {
+        await removeFromWishlist(product.id);
+        showToast("Товар видалено зі списку бажаних", "info");
+      } else {
+        await addToWishlist(product.id);
+        showToast("Товар додано до списку бажаних", "success");
+      }
+    } catch (err) {
+      console.error("Wishlist action failed:", err);
+      showToast("Сталася помилка, спробуйте пізніше", "error");
     }
   };
 
@@ -129,6 +162,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           >
             {inStock && isAnySizeAvailable ? "В наявності" : "Немає"}
           </span>
+
+          <button
+            onClick={handleWishlist}
+            className="absolute top-2 right-2 z-10 bg-white rounded-full p-1.5 shadow-md hover:scale-110 transition"
+            title={isWishlisted ? "Видалити зі списку бажаних" : "Додати до списку бажаних"}
+          >
+            <svg
+              className={`w-5 h-5 ${
+                isWishlisted
+                  ? "fill-red-500 text-red-500"
+                  : "fill-none text-gray-500"
+              }`}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.8}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          </button>
         </div>
 
         <div className="p-5">

@@ -3,8 +3,12 @@ import { prisma } from '../lib/prisma';
 
 export const getAllProducts = async (req: Request, res: Response) => {
   try {
-    const { category, brand, minPrice, maxPrice, search } = req.query;
+    const { category, brand, minPrice, maxPrice, search, page = '1', limit = '12' } = req.query;
     
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
     const where: any = {};
 
     if (category) where.category = category as string;
@@ -17,22 +21,36 @@ export const getAllProducts = async (req: Request, res: Response) => {
     }
 
     if (search) {
-      where.OR = [
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { description: { contains: search as string, mode: 'insensitive' } },
-        { brand: { contains: search as string, mode: 'insensitive' } }
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search as string, mode: 'insensitive' } },
+            { description: { contains: search as string, mode: 'insensitive' } },
+            { brand: { contains: search as string, mode: 'insensitive' } }
+          ]
+        }
       ];
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      orderBy: { createdAt: 'desc' }
-    });
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.product.count({ where })
+    ]);
 
     res.json({
       success: true,
       data: products,
-      total: products.length
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
     });
 
   } catch (error) {
