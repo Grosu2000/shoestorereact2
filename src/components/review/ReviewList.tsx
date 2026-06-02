@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import type { Review } from '../../services/review.api';  // ← type-only import
+import type { Review } from '../../services/review.api';
 import { reviewApi } from '../../services/review.api';
 import { useAuthStore } from '../../stores/auth-store';
-
+import { Button } from '../ui/Button';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 interface ReviewListProps {
   productId: string;
 }
@@ -10,18 +11,24 @@ interface ReviewListProps {
 export const ReviewList: React.FC<ReviewListProps> = ({ productId }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [averageRating, setAverageRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
-  // const { user } = useAuthStore();  ← ВИДАЛИТИ АБО ЗАКОМЕНТУВАТИ (якщо не використовується)
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     fetchReviews();
-  }, [productId]);
+  }, [productId, page]);
 
   const fetchReviews = async () => {
     try {
-      const response = await reviewApi.getByProduct(productId);
+      setLoading(true);
+      const response = await reviewApi.getByProduct(productId, page);
       setReviews(response.data.reviews);
       setAverageRating(response.data.averageRating);
+      setTotalReviews(response.data.totalReviews);
+      setTotalPages(response.data.pagination.totalPages);
     } catch (error) {
       console.error('Error fetching reviews:', error);
     } finally {
@@ -30,6 +37,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({ productId }) => {
   };
 
   const handleLike = async (reviewId: string, type: 'like' | 'dislike') => {
+    if (!user) return;
     try {
       const response = await reviewApi.like(reviewId, type);
       setReviews(prev => prev.map(review =>
@@ -42,13 +50,13 @@ export const ReviewList: React.FC<ReviewListProps> = ({ productId }) => {
     }
   };
 
-  if (loading) {
-    return <div className="text-center py-4">Завантаження відгуків...</div>;
+  if (loading && page === 1) {
+    return <div className="flex justify-center py-8"><LoadingSpinner size="md" /></div>;
   }
 
   if (reviews.length === 0) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8 bg-white rounded-xl border border-accent">
         <p className="text-text/60">Ще немає відгуків. Будьте першим!</p>
       </div>
     );
@@ -56,57 +64,69 @@ export const ReviewList: React.FC<ReviewListProps> = ({ productId }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold">Відгуки покупців</h3>
-        <div className="text-sm text-text/60">
-          Середня оцінка: {averageRating.toFixed(1)} ★ ({reviews.length} відгуків)
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h3 className="text-xl font-semibold">Відгуки покупців</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex text-amber-500">
+              {'★'.repeat(Math.floor(averageRating))}
+              {'☆'.repeat(5 - Math.floor(averageRating))}
+            </div>
+            <span className="text-text/60">{averageRating.toFixed(1)} • {totalReviews} відгуків</span>
+          </div>
         </div>
       </div>
 
       <div className="space-y-4">
         {reviews.map((review) => (
-          <div key={review.id} className="bg-white p-4 rounded-lg shadow-sm border border-accent">
-            <div className="flex justify-between items-start mb-2">
+          <div key={review.id} className="bg-white p-5 rounded-xl shadow-soft border border-accent">
+            <div className="flex justify-between items-start flex-wrap gap-4">
               <div>
-                <span className="font-semibold text-text">{review.userName}</span>
-                <div className="flex items-center mt-1">
-                  <div className="text-amber-500">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-text">{review.userName}</span>
+                  <div className="flex text-amber-500">
                     {'★'.repeat(review.rating)}
                     {'☆'.repeat(5 - review.rating)}
                   </div>
-                  <span className="ml-2 text-sm text-text/50">
-                    {new Date(review.createdAt).toLocaleDateString('uk-UA')}
-                  </span>
+                  {review.isVerifiedPurchase && (
+                    <span className="text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">Підтверджена покупка</span>
+                  )}
                 </div>
+                <p className="text-text/60 text-sm mt-1">{new Date(review.createdAt).toLocaleDateString('uk-UA')}</p>
               </div>
-              {review.isVerifiedPurchase && (
-                <span className="text-xs text-success bg-success/10 px-2 py-1 rounded-full">
-                  Підтверджена покупка
-                </span>
-              )}
+              <div className="flex gap-3">
+                <button onClick={() => handleLike(review.id, 'like')} className="flex items-center gap-1 text-text/50 hover:text-success transition">
+                  👍 {review.likes}
+                </button>
+                <button onClick={() => handleLike(review.id, 'dislike')} className="flex items-center gap-1 text-text/50 hover:text-error transition">
+                  👎 {review.dislikes}
+                </button>
+              </div>
             </div>
             
-            <p className="text-text/80 mt-2">{review.comment}</p>
+            <p className="text-text/80 mt-3 leading-relaxed">{review.comment}</p>
             
-            <div className="flex items-center space-x-4 mt-3 text-sm text-text/60">
-              <button
-                onClick={() => handleLike(review.id, 'like')}
-                className="flex items-center space-x-1 hover:text-success transition"
-              >
-                <span>👍</span>
-                <span>{review.likes}</span>
-              </button>
-              <button
-                onClick={() => handleLike(review.id, 'dislike')}
-                className="flex items-center space-x-1 hover:text-error transition"
-              >
-                <span>👎</span>
-                <span>{review.dislikes}</span>
-              </button>
-            </div>
+            {review.reply && (
+              <div className="mt-3 pl-4 border-l-2 border-button">
+                <p className="text-sm font-medium text-button">Адміністратор:</p>
+                <p className="text-text/70 text-sm mt-1">{review.reply}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-6">
+          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+            ← Попередні
+          </Button>
+          <span className="px-4 py-2 text-text">Сторінка {page} з {totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+            Наступні →
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

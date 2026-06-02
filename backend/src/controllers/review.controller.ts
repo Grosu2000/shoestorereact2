@@ -1,27 +1,29 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 
-// Отримати всі відгуки для товару
+// Отримати всі відгуки для товару (тільки схвалені)
 export const getProductReviews = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
+    const { page = '1', limit = '10' } = req.query;
+    
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
 
-    const reviews = await prisma.review.findMany({
-      where: { productId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { productId, isApproved: true },
+        include: { user: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.review.count({ where: { productId, isApproved: true } })
+    ]);
 
-    // Отримуємо середній рейтинг
     const ratingData = await prisma.review.aggregate({
-      where: { productId },
+      where: { productId, isApproved: true },
       _avg: { rating: true },
       _count: { rating: true },
     });
@@ -36,6 +38,7 @@ export const getProductReviews = async (req: Request, res: Response) => {
           userName: r.user.name,
           rating: r.rating,
           comment: r.comment,
+          reply: r.reply,
           likes: r.likes,
           dislikes: r.dislikes,
           isVerifiedPurchase: r.isVerifiedPurchase,
@@ -43,18 +46,16 @@ export const getProductReviews = async (req: Request, res: Response) => {
         })),
         averageRating: ratingData._avg.rating || 0,
         totalReviews: ratingData._count.rating,
-      },
+        pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+      }
     });
   } catch (error) {
     console.error('Get reviews error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Помилка отримання відгуків',
-    });
+    res.status(500).json({ success: false, error: 'Помилка отримання відгуків' });
   }
 };
 
-// Створити відгук
+// Створити відгук (потребує схвалення)
 export const createReview = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
@@ -62,19 +63,12 @@ export const createReview = async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId;
 
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Необхідно авторизуватися',
-      });
+      return res.status(401).json({ success: false, error: 'Необхідно авторизуватися' });
     }
 
     // Перевіряємо, чи купував користувач цей товар
     const orders = await prisma.order.findMany({
-      where: {
-        userId,
-        status: 'DELIVERED',
-      },
-      select: { items: true },
+      where: { userId, status: 'DELIVERED' },
     });
 
     let hasPurchased = false;
@@ -93,64 +87,160 @@ export const createReview = async (req: Request, res: Response) => {
         rating,
         comment,
         isVerifiedPurchase: hasPurchased,
+        isApproved: false, // Потребує схвалення адміном
       },
-    });
-
-    // Оновлюємо середній рейтинг товару
-    const ratingData = await prisma.review.aggregate({
-      where: { productId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        rating: ratingData._avg.rating || 0,
-        reviewCount: ratingData._count.rating,
-      },
-    });
-
-    // Отримуємо інформацію про користувача
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true },
     });
 
     res.status(201).json({
       success: true,
-      data: {
-        id: review.id,
-        productId: review.productId,
-        userId: review.userId,
-        userName: user?.name || 'Користувач',
-        rating: review.rating,
-        comment: review.comment,
-        likes: review.likes,
-        dislikes: review.dislikes,
-        isVerifiedPurchase: review.isVerifiedPurchase,
-        createdAt: review.createdAt,
-      },
-      message: 'Відгук додано',
+      data: review,
+      message: 'Відгук надіслано на модерацію',
     });
   } catch (error: any) {
     console.error('Create review error:', error);
-
     if (error.code === 'P2002') {
-      return res.status(400).json({
-        success: false,
-        error: 'Ви вже залишили відгук на цей товар',
-      });
+      return res.status(400).json({ success: false, error: 'Ви вже залишили відгук на цей товар' });
     }
-
-    res.status(500).json({
-      success: false,
-      error: 'Помилка створення відгуку',
-    });
+    res.status(500).json({ success: false, error: 'Помилка створення відгуку' });
   }
 };
 
-// Оновити відгук
+// Оновити рейтинг товару
+const updateProductRating = async (productId: string) => {
+  const ratingData = await prisma.review.aggregate({
+    where: { productId, isApproved: true },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      rating: ratingData._avg.rating || 0,
+      reviewCount: ratingData._count.rating,
+    },
+  });
+};
+
+// ========== АДМІН МОДЕРАЦІЯ ==========
+
+// Отримати всі відгуки (для адміна)
+export const getAllReviews = async (req: Request, res: Response) => {
+  try {
+    const { status, page = '1', limit = '20' } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+    if (status === 'pending') where.isApproved = false;
+    if (status === 'approved') where.isApproved = true;
+
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          product: { select: { id: true, name: true, images: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.review.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        reviews: reviews.map(r => ({
+          id: r.id,
+          productId: r.productId,
+          productName: r.product.name,
+          productImage: r.product.images?.[0] || null,
+          userId: r.userId,
+          userName: r.user.name,
+          userEmail: r.user.email,
+          rating: r.rating,
+          comment: r.comment,
+          reply: r.reply,
+          likes: r.likes,
+          dislikes: r.dislikes,
+          isVerifiedPurchase: r.isVerifiedPurchase,
+          isApproved: r.isApproved,
+          createdAt: r.createdAt,
+        })),
+        pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+      }
+    });
+  } catch (error) {
+    console.error('Get all reviews error:', error);
+    res.status(500).json({ success: false, error: 'Помилка отримання відгуків' });
+  }
+};
+
+// Схвалити відгук
+export const approveReview = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const review = await prisma.review.update({
+      where: { id },
+      data: { isApproved: true },
+    });
+    await updateProductRating(review.productId);
+    res.json({ success: true, message: 'Відгук схвалено' });
+  } catch (error) {
+    console.error('Approve review error:', error);
+    res.status(500).json({ success: false, error: 'Помилка схвалення відгуку' });
+  }
+};
+
+// Відхилити/видалити відгук
+export const rejectReview = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const review = await prisma.review.findUnique({ where: { id } });
+    if (!review) return res.status(404).json({ success: false, error: 'Відгук не знайдено' });
+    
+    const productId = review.productId;
+    await prisma.review.delete({ where: { id } });
+    await updateProductRating(productId);
+    res.json({ success: true, message: 'Відгук видалено' });
+  } catch (error) {
+    console.error('Reject review error:', error);
+    res.status(500).json({ success: false, error: 'Помилка видалення відгуку' });
+  }
+};
+
+// Додати відповідь адміна на відгук
+export const addReplyToReview = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reply } = req.body;
+    const review = await prisma.review.update({
+      where: { id },
+      data: { reply },
+    });
+    res.json({ success: true, data: review, message: 'Відповідь додано' });
+  } catch (error) {
+    console.error('Add reply error:', error);
+    res.status(500).json({ success: false, error: 'Помилка додавання відповіді' });
+  }
+};
+
+// Отримати статистику відгуків для адміна
+export const getReviewsStats = async (req: Request, res: Response) => {
+  try {
+    const total = await prisma.review.count();
+    const pending = await prisma.review.count({ where: { isApproved: false } });
+    const approved = await prisma.review.count({ where: { isApproved: true } });
+    const averageRating = await prisma.review.aggregate({ _avg: { rating: true }, where: { isApproved: true } });
+    res.json({ success: true, data: { total, pending, approved, averageRating: averageRating._avg.rating || 0 } });
+  } catch (error) {
+    console.error('Get reviews stats error:', error);
+    res.status(500).json({ success: false, error: 'Помилка отримання статистики' });
+  }
+};
+
 export const updateReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -162,10 +252,7 @@ export const updateReview = async (req: Request, res: Response) => {
     });
 
     if (!existingReview) {
-      return res.status(404).json({
-        success: false,
-        error: 'Відгук не знайдено',
-      });
+      return res.status(404).json({ success: false, error: 'Відгук не знайдено' });
     }
 
     const review = await prisma.review.update({
@@ -173,36 +260,15 @@ export const updateReview = async (req: Request, res: Response) => {
       data: { rating, comment },
     });
 
-    // Оновлюємо рейтинг товару
-    const ratingData = await prisma.review.aggregate({
-      where: { productId: review.productId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
+    await updateProductRating(review.productId);
 
-    await prisma.product.update({
-      where: { id: review.productId },
-      data: {
-        rating: ratingData._avg.rating || 0,
-        reviewCount: ratingData._count.rating,
-      },
-    });
-
-    res.json({
-      success: true,
-      data: review,
-      message: 'Відгук оновлено',
-    });
+    res.json({ success: true, data: review, message: 'Відгук оновлено' });
   } catch (error) {
     console.error('Update review error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Помилка оновлення відгуку',
-    });
+    res.status(500).json({ success: false, error: 'Помилка оновлення відгуку' });
   }
 };
 
-// Видалити відгук
 export const deleteReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -214,45 +280,20 @@ export const deleteReview = async (req: Request, res: Response) => {
     });
 
     if (!existingReview) {
-      return res.status(404).json({
-        success: false,
-        error: 'Відгук не знайдено',
-      });
+      return res.status(404).json({ success: false, error: 'Відгук не знайдено' });
     }
 
     const productId = existingReview.productId;
-
     await prisma.review.delete({ where: { id } });
+    await updateProductRating(productId);
 
-    // Оновлюємо рейтинг товару
-    const ratingData = await prisma.review.aggregate({
-      where: { productId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        rating: ratingData._avg.rating || 0,
-        reviewCount: ratingData._count.rating,
-      },
-    });
-
-    res.json({
-      success: true,
-      message: 'Відгук видалено',
-    });
+    res.json({ success: true, message: 'Відгук видалено' });
   } catch (error) {
     console.error('Delete review error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Помилка видалення відгуку',
-    });
+    res.status(500).json({ success: false, error: 'Помилка видалення відгуку' });
   }
 };
 
-// Лайк/Дизлайк відгуку
 export const likeReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -265,15 +306,9 @@ export const likeReview = async (req: Request, res: Response) => {
       },
     });
 
-    res.json({
-      success: true,
-      data: { likes: review.likes, dislikes: review.dislikes },
-    });
+    res.json({ success: true, data: { likes: review.likes, dislikes: review.dislikes } });
   } catch (error) {
     console.error('Like review error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Помилка',
-    });
+    res.status(500).json({ success: false, error: 'Помилка' });
   }
 };

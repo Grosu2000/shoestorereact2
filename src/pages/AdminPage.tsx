@@ -6,8 +6,10 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
+import { useProductStore } from "../stores/product-store";
 
-type TabType = "dashboard" | "orders" | "products" | "add-product";
+type TabType = "dashboard" | "orders" | "products" | "reviews";
 
 interface ProductFormData {
   name: string;
@@ -19,18 +21,29 @@ interface ProductFormData {
   features?: string;
 }
 
-interface ProductVariant {
-  size: string;
-  color: string;
-  stock: number;
-}
-
 const getErrorMessage = (error: any): string | undefined => {
   if (!error) return undefined;
-  if (typeof error === 'string') return error;
+  if (typeof error === "string") return error;
   if (error.message) return String(error.message);
-  return 'Помилка';
+  return "Помилка";
 };
+
+function getColorHex(colorName: string): string {
+  const colorMap: Record<string, string> = {
+    Чорний: "#000000",
+    Білий: "#FFFFFF",
+    Сірий: "#808080",
+    Синій: "#0000FF",
+    Червоний: "#FF0000",
+    Зелений: "#00FF00",
+    Жовтий: "#FFFF00",
+    Коричневий: "#A52A2A",
+    Бежевий: "#F5F5DC",
+    Рожевий: "#FFC0CB",
+    Фіолетовий: "#800080",
+  };
+  return colorMap[colorName] || "#D8E2EB";
+}
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
@@ -39,8 +52,10 @@ export const AdminPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null); 
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const { fetchProducts: fetchZustandProducts } = useProductStore();
 
   const {
     register: registerProduct,
@@ -48,12 +63,30 @@ export const AdminPage: React.FC = () => {
     reset: resetProduct,
     formState: { errors: productErrors },
   } = useForm<ProductFormData>();
-  
+
   const [productImages, setProductImages] = useState<File[]>([]);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+
+  // Нова структура: розміри, кольори та матриця
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
+  const [sizeColorMatrix, setSizeColorMatrix] = useState<
+    Record<string, Record<string, number>>
+  >({});
   const [newSize, setNewSize] = useState("");
   const [newColor, setNewColor] = useState("");
-  const [newStock, setNewStock] = useState("");
+
+  const refreshAllData = async () => {
+    await fetchDashboardData();
+    await queryClient.invalidateQueries({
+      predicate: (query) => query.queryKey[0] === "products",
+    });
+    await queryClient.refetchQueries({
+      predicate: (query) => query.queryKey[0] === "products",
+    });
+    await fetchZustandProducts();
+    localStorage.setItem("products-updated", Date.now().toString());
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -64,14 +97,11 @@ export const AdminPage: React.FC = () => {
       setLoading(true);
       const statsResponse = await adminApi.getStats();
       setStats(statsResponse.stats);
-
       const ordersResponse = await adminApi.getAllOrders();
       setOrders(ordersResponse.orders || []);
-
       const productsResponse = await adminApi.getAllProducts();
       setProducts(productsResponse.products || []);
     } catch (err: any) {
-      console.error("Помилка завантаження даних:", err);
       showToast("Помилка завантаження даних", "error");
     } finally {
       setLoading(false);
@@ -84,53 +114,65 @@ export const AdminPage: React.FC = () => {
       showToast("Статус оновлено", "success");
       fetchDashboardData();
     } catch (err: any) {
-      console.error("Помилка оновлення статусу:", err);
       showToast("Помилка оновлення статусу", "error");
     }
   };
 
-  const addVariant = () => {
-    if (newSize && newColor && newStock) {
-      const stockValue = parseInt(newStock);
-      if (!isNaN(stockValue) && stockValue >= 0) {
-        if (variants.some(v => v.size === newSize && v.color === newColor)) {
-          showToast(`Комбінація ${newSize} / ${newColor} вже існує`, "error");
-          return;
-        }
-        setVariants([...variants, { size: newSize, color: newColor, stock: stockValue }]);
-        setNewSize("");
-        setNewColor("");
-        setNewStock("");
-      }
+  const addSize = () => {
+    if (newSize && !sizes.includes(newSize)) {
+      setSizes([...sizes, newSize]);
+      setSizeColorMatrix((prev) => ({ ...prev, [newSize]: {} }));
+      setNewSize("");
     }
   };
 
-  const updateVariantStock = (index: number, stock: number) => {
-    if (stock < 0) stock = 0;
-    setVariants(prev => prev.map((v, i) => i === index ? { ...v, stock } : v));
+  const removeSize = (size: string) => {
+    setSizes(sizes.filter((s) => s !== size));
+    const newMatrix = { ...sizeColorMatrix };
+    delete newMatrix[size];
+    setSizeColorMatrix(newMatrix);
   };
 
-  const removeVariant = (index: number) => {
-    setVariants(prev => prev.filter((_, i) => i !== index));
+  const addColor = () => {
+    if (newColor && !colors.includes(newColor)) {
+      setColors([...colors, newColor]);
+      setNewColor("");
+    }
+  };
+
+  const removeColor = (color: string) => {
+    setColors(colors.filter((c) => c !== color));
+    const newMatrix = { ...sizeColorMatrix };
+    Object.keys(newMatrix).forEach((size) => {
+      delete newMatrix[size][color];
+    });
+    setSizeColorMatrix(newMatrix);
+  };
+
+  const updateStock = (size: string, color: string, stock: number) => {
+    setSizeColorMatrix((prev) => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        [color]: Math.max(0, stock),
+      },
+    }));
   };
 
   const handleAddProduct = async (data: ProductFormData) => {
     try {
       const formData = new FormData();
-
       Object.keys(data).forEach((key) => {
         const value = data[key as keyof ProductFormData];
         if (value !== undefined && value !== null) {
           formData.append(key, String(value));
         }
       });
+      formData.append("sizes", JSON.stringify(sizes));
+      formData.append("colors", JSON.stringify(colors));
+      formData.append("sizeColorMatrix", JSON.stringify(sizeColorMatrix));
+      productImages.forEach((file) => formData.append("images", file));
 
-      formData.append("variants", JSON.stringify(variants));
-
-      productImages.forEach((file) => {
-        formData.append("images", file);
-      });
-      
       if (selectedProduct) {
         await adminApi.updateProduct(selectedProduct.id, formData);
         showToast("Товар успішно оновлено", "success");
@@ -138,41 +180,34 @@ export const AdminPage: React.FC = () => {
         await adminApi.createProduct(formData);
         showToast("Товар успішно додано", "success");
       }
-      
+
       setShowAddProductModal(false);
       resetProduct();
       setProductImages([]);
-      setVariants([]);
+      setExistingImages([]);
+      setSizes([]);
+      setColors([]);
+      setSizeColorMatrix({});
       setSelectedProduct(null);
-      fetchDashboardData();
+      await refreshAllData();
     } catch (err: any) {
-      console.error("Помилка при збереженні товару:", err);
-      showToast(
-        selectedProduct 
-          ? `Помилка оновлення товару: ${err.message || "Невідома помилка"}` 
-          : `Помилка додавання товару: ${err.message || "Невідома помилка"}`, 
-        "error"
-      );
+      showToast(`Помилка: ${err.message || "Невідома помилка"}`, "error");
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!window.confirm("Ви впевнені, що хочете видалити цей товар?")) {
-      return;
-    }
+    if (!window.confirm("Ви впевнені, що хочете видалити цей товар?")) return;
     try {
       await adminApi.deleteProduct(productId);
       showToast("Товар видалено", "success");
-      fetchDashboardData();
+      await refreshAllData();
     } catch (err: any) {
-      console.error("Помилка видалення товару:", err);
       showToast("Помилка видалення товару", "error");
     }
   };
 
   const handleEditProduct = (product: any) => {
     setSelectedProduct(product);
-    
     resetProduct({
       name: product.name,
       price: product.price.toString(),
@@ -180,24 +215,31 @@ export const AdminPage: React.FC = () => {
       category: product.category,
       brand: product.brand,
       material: product.material || "",
-      features: Array.isArray(product.features) ? product.features.join(", ") : product.features || "",
+      features: Array.isArray(product.features)
+        ? product.features.join(", ")
+        : product.features || "",
     });
-    
-    if (product.variants && Array.isArray(product.variants)) {
-      setVariants(product.variants);
-    } else {
-      setVariants([]);
-    }
-    
-    setProductImages([]); 
+    setSizes(product.sizes || []);
+    setColors(product.colors || []);
+    setSizeColorMatrix(product.sizeColorMatrix || {});
+    setExistingImages(product.images || []);
+    setProductImages([]);
     setShowAddProductModal(true);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const newImages = Array.from(files);
-      setProductImages((prev) => [...prev, ...newImages]);
+    if (files) setProductImages((prev) => [...prev, ...Array.from(files)]);
+  };
+
+  const removeExistingImage = async (imageUrl: string) => {
+    if (!selectedProduct) return;
+    try {
+      await adminApi.deleteProductImage(selectedProduct.id, imageUrl);
+      setExistingImages((prev) => prev.filter((img) => img !== imageUrl));
+      showToast("Зображення видалено", "success");
+    } catch (err) {
+      showToast("Помилка видалення зображення", "error");
     }
   };
 
@@ -207,185 +249,225 @@ export const AdminPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-16">
-            <LoadingSpinner size="lg" />
-            <p className="mt-4 text-gray-600">Завантаження панелі адміністратора...</p>
-          </div>
+      <div className="min-h-screen bg-background py-8">
+        <div className="flex justify-center py-16">
+          <LoadingSpinner size="lg" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Навігація */}
-      <nav className="bg-white shadow">
+    <div className="min-h-screen bg-background">
+      <div className="bg-white border-b border-accent sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={() => setActiveTab("reviews")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "reviews" ? "bg-button text-text" : "text-text/70 hover:bg-accent"}`}
+              >
+                💬 Відгуки
+              </button>
               <button
                 onClick={() => setActiveTab("dashboard")}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  activeTab === "dashboard" ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "dashboard" ? "bg-button text-text" : "text-text/70 hover:bg-accent"}`}
               >
-                Дашборд
+                📊 Дашборд
               </button>
               <button
                 onClick={() => setActiveTab("orders")}
-                className={`ml-4 px-3 py-2 rounded-md text-sm font-medium ${
-                  activeTab === "orders" ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "orders" ? "bg-button text-text" : "text-text/70 hover:bg-accent"}`}
               >
-                Замовлення
+                📦 Замовлення
               </button>
               <button
                 onClick={() => setActiveTab("products")}
-                className={`ml-4 px-3 py-2 rounded-md text-sm font-medium ${
-                  activeTab === "products" ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "products" ? "bg-button text-text" : "text-text/70 hover:bg-accent"}`}
               >
-                Товари
+                👟 Товари
               </button>
             </div>
+            {activeTab === "products" && (
+              <Button onClick={() => setShowAddProductModal(true)} size="sm">
+                + Додати товар
+              </Button>
+            )}
           </div>
         </div>
-      </nav>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Дашборд */}
         {activeTab === "dashboard" && stats && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-700">Всього замовлень</h3>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalOrders}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-700">Загальний дохід</h3>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalRevenue?.toFixed(2) || 0} грн</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-700">Товарів</h3>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalProducts}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-700">Користувачів</h3>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalUsers}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">Статуси замовлень</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Очікують підтвердження:</span>
-                    <span className="font-semibold">{stats.pendingOrders}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>В обробці:</span>
-                    <span className="font-semibold">{stats.processingOrders}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Відправлено:</span>
-                    <span className="font-semibold">{stats.shippedOrders}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Доставлено:</span>
-                    <span className="font-semibold">{stats.deliveredOrders}</span>
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text/60 text-sm">Всього замовлень</p>
+                  <p className="text-3xl font-bold text-text mt-1">
+                    {stats.totalOrders}
+                  </p>
                 </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">Останні замовлення</h3>
-                <div className="space-y-3">
-                  {orders.slice(0, 5).map((order) => (
-                    <div key={order.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                      <div>
-                        <div className="font-medium">#{order.orderNumber}</div>
-                        <div className="text-sm text-gray-500">{order.shippingInfo?.firstName} {order.shippingInfo?.lastName}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold">{order.total?.toFixed(2)} грн</div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          order.status === "PENDING" ? "bg-yellow-100 text-yellow-800" :
-                          order.status === "DELIVERED" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
-                        }`}>
-                          {order.status === "PENDING" ? "Очікує" : order.status === "DELIVERED" ? "Доставлено" : "В обробці"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="w-12 h-12 bg-button/20 rounded-full flex items-center justify-center">
+                  📦
                 </div>
               </div>
             </div>
-          </>
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text/60 text-sm">Загальний дохід</p>
+                  <p className="text-3xl font-bold text-text mt-1">
+                    {stats.totalRevenue?.toFixed(0) || 0} грн
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  💰
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text/60 text-sm">Товарів</p>
+                  <p className="text-3xl font-bold text-text mt-1">
+                    {stats.totalProducts}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  👟
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-text/60 text-sm">Користувачів</p>
+                  <p className="text-3xl font-bold text-text mt-1">
+                    {stats.totalUsers}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  👤
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Замовлення */}
         {activeTab === "orders" && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Всі замовлення ({orders.length})</h2>
+          <div className="bg-white rounded-xl shadow-soft border border-accent overflow-hidden">
+            <div className="px-6 py-4 border-b border-accent">
+              <h2 className="text-xl font-semibold text-text">
+                Всі замовлення ({orders.length})
+              </h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-accent">
+                <thead className="bg-accent/30">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Номер</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Клієнт</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Сума</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дії</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text/70">
+                      Номер
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text/70">
+                      Клієнт
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text/70">
+                      Сума
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text/70">
+                      Статус
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text/70">
+                      Дата
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text/70">
+                      Дії
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {orders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">#{order.orderNumber}</div>
+                    <tr
+                      key={order.id}
+                      className="hover:bg-accent/10 transition border-b border-accent"
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-text">
+                        #{order.orderNumber?.slice(-8)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{order.shippingInfo?.firstName} {order.shippingInfo?.lastName}</div>
-                        <div className="text-sm text-gray-500">{order.shippingInfo?.email}</div>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-text">
+                          {order.shippingInfo?.firstName}{" "}
+                          {order.shippingInfo?.lastName}
+                        </div>
+                        <div className="text-xs text-text/50">
+                          {order.shippingInfo?.email}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-gray-900">{order.total?.toFixed(2)} грн</div>
+                      <td className="px-6 py-4 text-sm font-semibold text-text">
+                        {order.total?.toFixed(0)} грн
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          order.status === "PENDING" ? "bg-yellow-100 text-yellow-800" :
-                          order.status === "PROCESSING" ? "bg-blue-100 text-blue-800" :
-                          order.status === "SHIPPED" ? "bg-purple-100 text-purple-800" :
-                          order.status === "DELIVERED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}>
-                          {order.status === "PENDING" ? "Очікує" :
-                           order.status === "PROCESSING" ? "В обробці" :
-                           order.status === "SHIPPED" ? "Відправлено" :
-                           order.status === "DELIVERED" ? "Доставлено" : "Скасовано"}
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${order.status === "PENDING" ? "bg-yellow-100 text-yellow-800" : order.status === "PROCESSING" ? "bg-blue-100 text-blue-800" : order.status === "SHIPPED" ? "bg-purple-100 text-purple-800" : order.status === "DELIVERED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                        >
+                          {order.status === "PENDING"
+                            ? "Очікує"
+                            : order.status === "PROCESSING"
+                              ? "В обробці"
+                              : order.status === "SHIPPED"
+                                ? "Відправлено"
+                                : order.status === "DELIVERED"
+                                  ? "Доставлено"
+                                  : "Скасовано"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-text/50">
                         {new Date(order.createdAt).toLocaleDateString("uk-UA")}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
                           {order.status === "PENDING" && (
                             <>
-                              <Button size="sm" onClick={() => handleStatusUpdate(order.id, "PROCESSING")}>В обробку</Button>
-                              <Button variant="outline" size="sm" className="text-red-600 border-red-300" onClick={() => handleStatusUpdate(order.id, "CANCELLED")}>Скасувати</Button>
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  handleStatusUpdate(order.id, "PROCESSING")
+                                }
+                              >
+                                В обробку
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-error border-error/30"
+                                onClick={() =>
+                                  handleStatusUpdate(order.id, "CANCELLED")
+                                }
+                              >
+                                Скасувати
+                              </Button>
                             </>
                           )}
                           {order.status === "PROCESSING" && (
-                            <Button size="sm" onClick={() => handleStatusUpdate(order.id, "SHIPPED")}>Відправити</Button>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                handleStatusUpdate(order.id, "SHIPPED")
+                              }
+                            >
+                              Відправити
+                            </Button>
                           )}
                           {order.status === "SHIPPED" && (
-                            <Button size="sm" onClick={() => handleStatusUpdate(order.id, "DELIVERED")}>Завершити</Button>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                handleStatusUpdate(order.id, "DELIVERED")
+                              }
+                            >
+                              Завершити
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -397,49 +479,71 @@ export const AdminPage: React.FC = () => {
           </div>
         )}
 
-        {/* Товари */}
         {activeTab === "products" && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Товари ({products.length})</h2>
-              <Button onClick={() => setShowAddProductModal(true)} size="sm">+ Додати товар</Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-              {products.map((product) => (
-                <div key={product.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="h-48 bg-gray-100">
-                    {product.images && product.images.length > 0 ? (
-                      <img
-                        src={product.images[0]?.startsWith('http') ? product.images[0] : `http://localhost:3000${product.images[0]}`}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">Немає зображення</div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-lg truncate">{product.name}</h3>
-                    <p className="text-gray-600 text-sm mt-1 truncate">{product.brand} • {product.category}</p>
-                    <div className="flex justify-between items-center mt-3">
-                      <span className="text-xl font-bold">{product.price} грн</span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${product.inStock ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                        {product.inStock ? `${product.stock} шт` : "Немає в наявності"}
-                      </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white rounded-xl shadow-soft border border-accent overflow-hidden hover:shadow-md transition"
+              >
+                <div className="h-48 bg-accent/30">
+                  <img
+                    src={
+                      product.images?.[0]
+                        ? product.images[0].startsWith("http")
+                          ? product.images[0]
+                          : `http://localhost:3000${product.images[0]}`
+                        : "/images/placeholder.jpg"
+                    }
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="font-semibold text-text">
+                        {product.name}
+                      </h3>
+                      <p className="text-sm text-text/50">
+                        {product.brand} • {product.category}
+                      </p>
                     </div>
-                    <div className="mt-3 flex space-x-2">
-                      <Button size="sm" variant="outline" className="flex-1" onClick={() => handleEditProduct(product)}>Редагувати</Button>
-                      <Button size="sm" variant="outline" className="text-red-600 border-red-300 flex-1" onClick={() => handleDeleteProduct(product.id)}>Видалити</Button>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${product.inStock ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                    >
+                      {product.inStock ? `${product.stock} шт` : "Немає"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="text-xl font-bold text-text">
+                      {product.price} грн
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditProduct(product)}
+                      >
+                        Редагувати
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-error border-error/30"
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
+                        Видалити
+                      </Button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Модальне вікно додавання/редагування товару */}
       <Modal
         isOpen={showAddProductModal}
         onClose={() => {
@@ -447,145 +551,253 @@ export const AdminPage: React.FC = () => {
           setSelectedProduct(null);
           resetProduct();
           setProductImages([]);
-          setVariants([]);
-          setNewSize("");
-          setNewColor("");
-          setNewStock("");
+          setExistingImages([]);
+          setSizes([]);
+          setColors([]);
+          setSizeColorMatrix({});
         }}
         title={selectedProduct ? "Редагувати товар" : "Додати новий товар"}
       >
-        <form onSubmit={handleSubmitProduct(handleAddProduct)} className="space-y-4">
+        <form
+          onSubmit={handleSubmitProduct(handleAddProduct)}
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Назва товару *"
-              {...registerProduct("name", { required: "Введіть назву" })}
-              error={getErrorMessage(productErrors.name)}
-            />
-            <Input
-              label="Ціна (грн) *"
-              type="number"
-              step="0.01"
-              {...registerProduct("price", {
-                required: "Введіть ціну",
-                min: { value: 0, message: "Ціна не може бути відʼємною" },
-              })}
-              error={getErrorMessage(productErrors.price)}
-            />
-            <Input
-              label="Бренд *"
-              {...registerProduct("brand", { required: "Введіть бренд" })}
-              error={getErrorMessage(productErrors.brand)}
-            />
-            <Input
-              label="Категорія *"
-              {...registerProduct("category", {
-                required: "Введіть категорію",
-              })}
-              error={getErrorMessage(productErrors.category)}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Назва товару *
+              </label>
+              <Input
+                {...registerProduct("name", { required: "Введіть назву" })}
+                error={getErrorMessage(productErrors.name)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ціна (грн) *
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                {...registerProduct("price", {
+                  required: "Введіть ціну",
+                  min: { value: 0, message: "Ціна не може бути відʼємною" },
+                })}
+                error={getErrorMessage(productErrors.price)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Бренд *
+              </label>
+              <Input
+                {...registerProduct("brand", { required: "Введіть бренд" })}
+                error={getErrorMessage(productErrors.brand)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Категорія *
+              </label>
+              <Input
+                {...registerProduct("category", {
+                  required: "Введіть категорію",
+                })}
+                error={getErrorMessage(productErrors.category)}
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Опис товару *
             </label>
             <textarea
               {...registerProduct("description", { required: "Введіть опис" })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-accent rounded-lg focus:outline-none focus:ring-2 focus:ring-button"
               rows={3}
             />
             {productErrors.description && (
-              <p className="mt-1 text-sm text-red-600">{getErrorMessage(productErrors.description)}</p>
+              <p className="mt-1 text-sm text-error">
+                {getErrorMessage(productErrors.description)}
+              </p>
             )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-accent/10 rounded-xl p-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                📏 Розміри
+              </label>
+              <div className="flex gap-2 mb-3">
+                <Input
+                  placeholder="Розмір (42)"
+                  value={newSize}
+                  onChange={(e) => setNewSize(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="button" onClick={addSize} variant="outline">
+                  Додати
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sizes.map((size) => (
+                  <div
+                    key={size}
+                    className="bg-white rounded-lg px-3 py-1 border border-accent flex items-center gap-2"
+                  >
+                    <span className="font-medium">{size}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSize(size)}
+                      className="text-error hover:text-error-dark"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-accent/10 rounded-xl p-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                🎨 Кольори
+              </label>
+              <div className="flex gap-2 mb-3">
+                <Input
+                  placeholder="Колір (Чорний)"
+                  value={newColor}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="button" onClick={addColor} variant="outline">
+                  Додати
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {colors.map((color) => (
+                  <div
+                    key={color}
+                    className="bg-white rounded-lg px-3 py-1 border border-accent flex items-center gap-2"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: getColorHex(color) }}
+                    />
+                    <span>{color}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeColor(color)}
+                      className="text-error hover:text-error-dark"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {sizes.length > 0 && colors.length > 0 && (
+            <div className="bg-accent/10 rounded-xl p-4 overflow-x-auto">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                📊 Кількість товару (розмір × колір)
+              </label>
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="p-2 text-left">Розмір \\ Колір</th>
+                    {colors.map((color) => (
+                      <th key={color} className="p-2 text-center min-w-[80px]">
+                        {color}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sizes.map((size) => (
+                    <tr key={size}>
+                      <td className="p-2 font-medium border-t border-accent">
+                        {size}
+                      </td>
+                      {colors.map((color) => (
+                        <td
+                          key={color}
+                          className="p-2 text-center border-t border-accent"
+                        >
+                          <input
+                            type="number"
+                            min="0"
+                            value={sizeColorMatrix[size]?.[color] || 0}
+                            onChange={(e) =>
+                              updateStock(
+                                size,
+                                color,
+                                parseInt(e.target.value) || 0,
+                              )
+                            }
+                            className="w-20 px-2 py-1 border border-accent rounded text-center"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-text/50 mt-3">
+                💡 Заповніть кількість для кожної комбінації розміру та кольору
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Матеріал
+              </label>
+              <Input {...registerProduct("material")} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Особливості
+              </label>
+              <Input
+                placeholder="Водонепроникні, Легкі"
+                {...registerProduct("features")}
+              />
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Розміри, кольори та наявність
+              🖼️ Зображення товару
             </label>
-            
-            {/* Форма додавання комбінації */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Input
-                placeholder="Розмір (напр. 42)"
-                value={newSize}
-                onChange={(e) => setNewSize(e.target.value)}
-                className="w-24"
-              />
-              <Input
-                placeholder="Колір"
-                value={newColor}
-                onChange={(e) => setNewColor(e.target.value)}
-                className="w-28"
-              />
-              <Input
-                placeholder="Кількість"
-                type="number"
-                value={newStock}
-                onChange={(e) => setNewStock(e.target.value)}
-                className="w-24"
-              />
-              <Button type="button" onClick={addVariant} variant="outline">
-                Додати
-              </Button>
-            </div>
-            
-            {/* Таблиця комбінацій */}
-            {variants.length > 0 && (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-3 gap-0 bg-gray-100 text-sm font-medium">
-                  <div className="p-2 border-r">Розмір</div>
-                  <div className="p-2 border-r">Колір</div>
-                  <div className="p-2">Кількість (шт.)</div>
-                </div>
-                {variants.map((variant, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-0 border-t">
-                    <div className="p-2 border-r">{variant.size}</div>
-                    <div className="p-2 border-r">{variant.color}</div>
-                    <div className="p-2 flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        value={variant.stock}
-                        onChange={(e) => updateVariantStock(index, parseInt(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 border rounded"
+            {existingImages.length > 0 && (
+              <div className="mb-3">
+                <p className="text-sm text-text/60 mb-2">Поточні зображення:</p>
+                <div className="flex flex-wrap gap-2">
+                  {existingImages.map((img, idx) => (
+                    <div key={idx} className="relative">
+                      <img
+                        src={`http://localhost:3000${img}`}
+                        alt="product"
+                        className="w-20 h-20 object-cover rounded-lg border border-accent"
                       />
                       <button
                         type="button"
-                        onClick={() => removeVariant(index)}
-                        className="text-red-500 hover:text-red-700 ml-auto"
+                        onClick={() => removeExistingImage(img)}
+                        className="absolute -top-2 -right-2 bg-error text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                       >
                         ✕
                       </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
-            {variants.length === 0 && (
-              <p className="text-sm text-gray-400 mt-2">Додайте хоча б одну комбінацію розміру та кольору</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Матеріал"
-              {...registerProduct("material")}
-            />
-            <Input
-              label="Особливості"
-              placeholder="Водонепроникні, Легкі, Для бігу"
-              {...registerProduct("features")}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Зображення товару
-            </label>
-            <div className="mt-1 flex items-center">
-              <label className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
-                <span>Вибрати файли</span>
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer bg-button text-text px-4 py-2 rounded-lg hover:bg-button-hover transition">
+                <span>📁 Вибрати файли</span>
                 <input
                   type="file"
                   multiple
@@ -594,21 +806,23 @@ export const AdminPage: React.FC = () => {
                   className="hidden"
                 />
               </label>
-              <span className="ml-3 text-sm text-gray-500">{productImages.length} файлів обрано</span>
+              <span className="text-sm text-text/50">
+                {productImages.length} нових файлів
+              </span>
             </div>
             {productImages.length > 0 && (
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {productImages.map((file, index) => (
                   <div key={index} className="relative">
                     <img
                       src={URL.createObjectURL(file)}
                       alt="Preview"
-                      className="w-full h-24 object-cover rounded"
+                      className="w-20 h-20 object-cover rounded-lg border border-accent"
                     />
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                      className="absolute -top-2 -right-2 bg-error text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                     >
                       ✕
                     </button>
@@ -618,7 +832,7 @@ export const AdminPage: React.FC = () => {
             )}
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -627,16 +841,16 @@ export const AdminPage: React.FC = () => {
                 setSelectedProduct(null);
                 resetProduct();
                 setProductImages([]);
-                setVariants([]);
-                setNewSize("");
-                setNewColor("");
-                setNewStock("");
+                setExistingImages([]);
+                setSizes([]);
+                setColors([]);
+                setSizeColorMatrix({});
               }}
             >
               Скасувати
             </Button>
             <Button type="submit">
-              {selectedProduct ? "Оновити товар" : "Додати товар"}
+              {selectedProduct ? "💾 Оновити товар" : "➕ Додати товар"}
             </Button>
           </div>
         </form>

@@ -16,7 +16,7 @@ export interface Product {
   sizes: ProductSize[];
   colors: string[];
   colorStocks?: Array<{ color: string; stock: number }>;
-  variants?: Array<{ size: string; color: string; stock: number }>;  // ← ДОДАТИ СЮДИ
+  variants?: Array<{ size: string; color: string; stock: number }>; // ← ДОДАТИ СЮДИ
   inStock: boolean;
   stockQuantity: number;
   rating: number;
@@ -27,6 +27,7 @@ export interface Product {
   country: string;
   createdAt: string;
   updatedAt?: string;
+  sizeColorMatrix?: Record<string, Record<string, number>>;
 }
 
 export interface CartItem {
@@ -79,7 +80,7 @@ export interface Order {
   discount: number;
   shipping: number;
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -100,8 +101,8 @@ export interface Order {
     postalCode: string;
     country?: string;
   };
-  paymentMethod: 'card' | 'cash' | 'liqpay' | 'paypal';
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentMethod: "card" | "cash" | "liqpay" | "paypal";
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
   notes?: string;
   trackingNumber?: string;
   estimatedDelivery?: string;
@@ -146,8 +147,8 @@ export interface ProductFilters {
   colors?: string[];
   inStock?: boolean;
   rating?: number;
-  sortBy?: 'price' | 'rating' | 'newest' | 'popular' | 'name';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "price" | "rating" | "newest" | "popular" | "name";
+  sortOrder?: "asc" | "desc";
   search?: string;
   page?: number;
   limit?: number;
@@ -198,22 +199,22 @@ export interface ProductUpdateData {
   country?: string;
 }
 
-export type ProductSortOption = 
-  | 'price-low' 
-  | 'price-high' 
-  | 'name' 
-  | 'rating' 
-  | 'newest' 
-  | 'popular';
+export type ProductSortOption =
+  | "price-low"
+  | "price-high"
+  | "name"
+  | "rating"
+  | "newest"
+  | "popular";
 
-export type Page = 
-  | 'home' 
-  | 'products' 
-  | 'cart' 
-  | 'login' 
-  | 'profile' 
-  | 'admin' 
-  | 'about' 
-  | 'checkout' 
-  | 'orders' 
-  | 'product-detail';
+export type Page =
+  | "home"
+  | "products"
+  | "cart"
+  | "login"
+  | "profile"
+  | "admin"
+  | "about"
+  | "checkout"
+  | "orders"
+  | "product-detail";

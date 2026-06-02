@@ -13,7 +13,6 @@ export const useProducts = (params?: {
     queryKey: ['products', params],
     queryFn: async () => {
       const queryParams = new URLSearchParams();
-      
       if (params?.category) queryParams.append('category', params.category);
       if (params?.brand) queryParams.append('brand', params.brand);
       if (params?.minPrice) queryParams.append('minPrice', params.minPrice.toString());
@@ -22,14 +21,11 @@ export const useProducts = (params?: {
       
       const queryString = queryParams.toString();
       const url = queryString ? `/products?${queryString}` : '/products';
+      const response = await api.get<any>(url);
       
-      
-      const products = await api.get<Product[]>(url);
-      
-      console.log('API products:', products); 
-      
-      return products; 
+      // Важливо: повертаємо масив товарів
+      return response.data || response || [];
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0, // Додати цей рядок – дані завжди свіжі
   });
 };

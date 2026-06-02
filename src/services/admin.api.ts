@@ -20,14 +20,16 @@ export const adminApi = {
       lowStockProducts: any[] 
     }>('/admin/stats'),
   
-  
   getAllOrders: () => 
     api.get<{ orders: any[] }>('/admin/orders'),
   
   updateOrderStatus: (id: string, status: string) => 
     api.put<{ order: any }>(`/admin/orders/${id}/status`, { status }),
   
-  
+  // ВИПРАВЛЕНО: передаємо imageUrl в тілі запиту
+  deleteProductImage: (productId: string, imageUrl: string) => 
+    api.delete(`/admin/products/${productId}/images`, { imageUrl }),
+
   getAllProducts: () => 
     api.get<{ products: any[] }>('/admin/products'),
   

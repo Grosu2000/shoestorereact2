@@ -138,17 +138,18 @@ const api = {
     return handleResponse(response);
   },
 
-  delete: async (endpoint: string): Promise<void> => {
+  delete: async (endpoint: string, data?: unknown): Promise<void> => {
     const normalizedEndpoint = normalizeEndpoint(endpoint);
     const url = `${API_URL}${normalizedEndpoint}`;
     
-    console.log(`[API DELETE] ${url}`); // Для отладки
+    console.log(`[API DELETE] ${url}`, data); // Для отладки
     
     const headers = createHeaders(false);
     
     const response = await fetch(url, {
       method: 'DELETE',
       headers,
+      body: data ? JSON.stringify(data) : undefined,
       credentials: 'include',
     });
     

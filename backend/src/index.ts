@@ -8,8 +8,8 @@ import adminRoutes from './routes/admin.routes';
 import orderRoutes from './routes/order.routes';
 import paymentRoutes from './routes/payment.routes';
 import path from 'path';
-import reviewRoutes from './routes/review.routes';
 import wishlistRoutes from './routes/wishlist.routes';
+import reviewRoutes, { adminReviewRouter } from './routes/review.routes';
 
 dotenv.config();
 
@@ -121,6 +121,8 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/products/:productId/reviews', reviewRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/products/:productId/reviews', reviewRoutes);
+app.use('/api/admin/reviews', adminReviewRouter);
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 app.get('/api/health', async (req, res) => {

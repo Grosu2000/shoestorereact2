@@ -5,28 +5,30 @@ import {
   updateReview,
   deleteReview,
   likeReview,
+  getAllReviews,
+  approveReview,
+  rejectReview,
+  addReplyToReview,
+  getReviewsStats,
 } from '../controllers/review.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
-import { body } from 'express-validator';
-import { handleValidationErrors } from '../validators/auth.validator';
+import { adminMiddleware } from '../middleware/auth.middleware';
 
 const router = Router({ mergeParams: true });
 
-// Публічний маршрут
 router.get('/', getProductReviews);
 
-// Захищені маршрути
-router.post(
-  '/',
-  authMiddleware,
-  body('rating').isInt({ min: 1, max: 5 }).withMessage('Рейтинг має бути від 1 до 5'),
-  body('comment').optional().isLength({ max: 1000 }).withMessage('Коментар не більше 1000 символів'),
-  handleValidationErrors,
-  createReview
-);
-
+router.post('/', authMiddleware, createReview);
 router.put('/:id', authMiddleware, updateReview);
 router.delete('/:id', authMiddleware, deleteReview);
 router.post('/:id/like', authMiddleware, likeReview);
 
 export default router;
+
+export const adminReviewRouter = Router();
+adminReviewRouter.use(authMiddleware, adminMiddleware);
+adminReviewRouter.get('/', getAllReviews);
+adminReviewRouter.get('/stats', getReviewsStats);
+adminReviewRouter.post('/:id/approve', approveReview);
+adminReviewRouter.delete('/:id/reject', rejectReview);
+adminReviewRouter.post('/:id/reply', addReplyToReview);

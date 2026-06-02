@@ -8,6 +8,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  deleteProductImage,
   getAllProducts,
   getDashboardStats
 } from '../controllers/admin.controller';
@@ -64,5 +65,6 @@ router.get('/products', getAllProducts);
 router.post('/products', upload.array('images', 5), createProduct); 
 router.put('/products/:id', upload.array('images', 5), updateProduct);
 router.delete('/products/:id', deleteProduct);
+router.delete('/products/:id/images', adminMiddleware, deleteProductImage);
 
 export default router;

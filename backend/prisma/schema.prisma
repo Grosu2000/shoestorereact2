@@ -34,6 +34,7 @@ model Product {
   brand         String
   sizes         Json      
   colors        Json      
+   sizeColorMatrix Json   @default("{}")
   variants      Json     @default("[]")
   images        String[]
   stock         Int      @default(0)
@@ -101,9 +102,11 @@ model Review {
   userId             String
   rating             Int      @default(5)
   comment            String?
+  reply              String?   // ← НОВЕ ПОЛЕ - відповідь адміна
   likes              Int      @default(0)
   dislikes           Int      @default(0)
   isVerifiedPurchase Boolean  @default(false)
+  isApproved         Boolean  @default(false) // ← НОВЕ ПОЛЕ - модерація
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)

@@ -7,25 +7,30 @@ export interface Review {
   userName: string;
   rating: number;
   comment: string;
+  reply?: string;
   likes: number;
   dislikes: number;
   isVerifiedPurchase: boolean;
   createdAt: string;
 }
 
+export interface ReviewsResponse {
+  success: boolean;
+  data: {
+    reviews: Review[];
+    averageRating: number;
+    totalReviews: number;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  };
+}
+
 export const reviewApi = {
-  getByProduct: (productId: string) =>
-    api.get<{ data: { reviews: Review[]; averageRating: number; totalReviews: number } }>(`/products/${productId}/reviews`),
+  getByProduct: (productId: string, page: number = 1) =>
+    api.get<ReviewsResponse>(`/products/${productId}/reviews?page=${page}`),
 
   create: (productId: string, data: { rating: number; comment: string }) =>
-    api.post<{ data: Review }>(`/products/${productId}/reviews`, data),
-
-  update: (reviewId: string, data: { rating: number; comment: string }) =>
-    api.put<{ data: Review }>(`/reviews/${reviewId}`, data),
-
-  delete: (reviewId: string) =>
-    api.delete(`/reviews/${reviewId}`),
+    api.post<{ success: boolean; data: Review; message: string }>(`/products/${productId}/reviews`, data),
 
   like: (reviewId: string, type: 'like' | 'dislike') =>
-    api.post<{ data: { likes: number; dislikes: number } }>(`/reviews/${reviewId}/like`, { type }),
+    api.post<{ success: boolean; data: { likes: number; dislikes: number } }>(`/reviews/${reviewId}/like`, { type }),
 };
