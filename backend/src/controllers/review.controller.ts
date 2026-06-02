@@ -11,6 +11,11 @@ export const getProductReviews = async (req: Request, res: Response) => {
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
+    // Забороняємо кешування
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const [reviews, total] = await Promise.all([
       prisma.review.findMany({
         where: { productId, isApproved: true },
@@ -21,6 +26,8 @@ export const getProductReviews = async (req: Request, res: Response) => {
       }),
       prisma.review.count({ where: { productId, isApproved: true } })
     ]);
+
+    console.log(`✅ Found ${reviews.length} approved reviews for product ${productId}`);
 
     const ratingData = await prisma.review.aggregate({
       where: { productId, isApproved: true },
@@ -126,6 +133,10 @@ const updateProductRating = async (productId: string) => {
 // Отримати всі відгуки (для адміна)
 export const getAllReviews = async (req: Request, res: Response) => {
   try {
+    console.log('📋 GetAllReviews called');
+    console.log('User from token:', (req as any).user);
+    
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const { status, page = '1', limit = '20' } = req.query;
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
@@ -134,6 +145,8 @@ export const getAllReviews = async (req: Request, res: Response) => {
     const where: any = {};
     if (status === 'pending') where.isApproved = false;
     if (status === 'approved') where.isApproved = true;
+
+    console.log('🔍 Where clause:', where);
 
     const [reviews, total] = await Promise.all([
       prisma.review.findMany({
@@ -148,6 +161,8 @@ export const getAllReviews = async (req: Request, res: Response) => {
       }),
       prisma.review.count({ where }),
     ]);
+
+    console.log(`✅ Found ${reviews.length} reviews, total: ${total}`);
 
     res.json({
       success: true,
@@ -173,7 +188,7 @@ export const getAllReviews = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Get all reviews error:', error);
+    console.error('❌ Get all reviews error:', error);
     res.status(500).json({ success: false, error: 'Помилка отримання відгуків' });
   }
 };

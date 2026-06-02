@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User } from "../types/user";
 import { authService } from "../services/auth";
+import { api } from "../services/api";
 
 interface AuthStore {
   user: User | null;
@@ -13,9 +14,19 @@ interface AuthStore {
   logout: () => void;
   checkAuth: () => Promise<void>;
   clearError: () => void;
-  
   setUser: (user: User | null) => void;
   updateUser: (updates: Partial<User>) => void;
+}
+
+// Тип для відповіді API
+interface AuthMeResponse {
+  success?: boolean;
+  data?: User;
+  user?: User;
+  id?: string;
+  email?: string;
+  name?: string;
+  role?: string;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -26,7 +37,6 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       error: null,
 
-      
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
@@ -36,7 +46,6 @@ export const useAuthStore = create<AuthStore>()(
             token: response.token,
             isLoading: false,
           });
-          
           localStorage.setItem("token", response.token);
         } catch (error: any) {
           set({
@@ -80,28 +89,38 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       checkAuth: async () => {
-        const { token } = get();
+        const token = get().token;
+        console.log('🔍 checkAuth called, token exists:', !!token);
+        
         if (!token) {
-          set({ user: null });
+          set({ user: null, isLoading: false });
           return;
         }
-
+        
         try {
-          const user = await authService.me();
-          set({ user });
-        } catch (error: any) {
-          if (
-            error.message.includes("401") ||
-            error.message.includes("Unauthorized")
-          ) {
-            set({
-              user: null,
-              token: null,
-              error: "Сесія закінчилася. Будь ласка, увійдіть знову.",
-            });
-          } else {
-            console.error("Помилка перевірки авторизації:", error);
+          const response = await api.get<AuthMeResponse>('/auth/me');
+          console.log('📡 Auth response:', response);
+          
+          let userData: User | null = null;
+          
+          // Перевіряємо різні формати відповіді
+          if (response && 'data' in response && response.data) {
+            userData = response.data;
+          } else if (response && 'user' in response && response.user) {
+            userData = response.user as User;
+          } else if (response && 'id' in response) {
+            userData = response as unknown as User;
           }
+          
+          if (userData) {
+            set({ user: userData, isLoading: false });
+          } else {
+            console.warn('No user data in response');
+            set({ user: null, token: null, isLoading: false });
+          }
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          set({ user: null, token: null, isLoading: false });
         }
       },
 
@@ -109,7 +128,6 @@ export const useAuthStore = create<AuthStore>()(
         set({ error: null });
       },
 
-      
       setUser: (user: User | null) => {
         set({ user });
       },

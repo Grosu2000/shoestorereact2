@@ -106,11 +106,6 @@ export const OrderSuccessPage: React.FC = () => {
           )}
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/orders" className="sm:w-auto w-full">
-              <Button size="lg" className="w-full sm:w-auto">
-                Переглянути всі замовлення
-              </Button>
-            </Link>
             <Link to="/products" className="sm:w-auto w-full">
               <Button variant="outline" size="lg" className="w-full sm:w-auto">
                 Продовжити покупки
@@ -119,7 +114,7 @@ export const OrderSuccessPage: React.FC = () => {
           </div>
 
           <p className="text-gray-500 text-sm mt-8">
-            Дякуємо за покупку! Інформацію про статус замовлення ви можете переглядати в особистому кабінеті.
+            Якщо у вас виникли питання, зверніться до нашої служби підтримки.
           </p>
         </div>
       </div>

@@ -26,9 +26,9 @@ router.post('/:id/like', authMiddleware, likeReview);
 export default router;
 
 export const adminReviewRouter = Router();
-adminReviewRouter.use(authMiddleware, adminMiddleware);
+adminReviewRouter.use(authMiddleware);
+adminReviewRouter.use(adminMiddleware);
 adminReviewRouter.get('/', getAllReviews);
-adminReviewRouter.get('/stats', getReviewsStats);
 adminReviewRouter.post('/:id/approve', approveReview);
 adminReviewRouter.delete('/:id/reject', rejectReview);
 adminReviewRouter.post('/:id/reply', addReplyToReview);

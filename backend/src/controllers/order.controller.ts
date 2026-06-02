@@ -31,22 +31,40 @@ export const createOrder = async (req: Request, res: Response) => {
         });
       }
 
-      // Оновлюємо розміри (зменшуємо кількість)
-      const currentSizes = product.sizes as any[];
-      const updatedSizes = currentSizes.map((size: any) => {
-        if (size.size === item.size) {
-          return { ...size, stock: Math.max(0, size.stock - item.quantity) };
+      // Отримуємо поточну матрицю розмірів та кольорів
+      const sizeColorMatrix = product.sizeColorMatrix as Record<string, Record<string, number>>;
+      
+      // Перевіряємо чи є достатньо товару
+      const currentStock = sizeColorMatrix[item.size]?.[item.color] || 0;
+      if (currentStock < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          error: `Недостатньо товару ${product.name} (розмір: ${item.size}, колір: ${item.color})`
+        });
+      }
+
+      // Оновлюємо кількість в матриці
+      const updatedMatrix = {
+        ...sizeColorMatrix,
+        [item.size]: {
+          ...sizeColorMatrix[item.size],
+          [item.color]: currentStock - item.quantity
         }
-        return size;
+      };
+
+      // Розраховуємо загальний запас
+      let totalStock = 0;
+      Object.values(updatedMatrix).forEach((colorMap: any) => {
+        Object.values(colorMap).forEach((stock: any) => {
+          totalStock += stock || 0;
+        });
       });
 
-      // Оновлюємо загальний запас та статус
-      const totalStock = updatedSizes.reduce((sum: number, size: any) => sum + size.stock, 0);
-
+      // Оновлюємо товар
       await prisma.product.update({
         where: { id: item.productId },
         data: {
-          sizes: updatedSizes,
+          sizeColorMatrix: updatedMatrix,
           stock: totalStock,
           inStock: totalStock > 0,
         },
@@ -131,20 +149,28 @@ export const cancelOrder = async (req: Request, res: Response) => {
       });
 
       if (product) {
-        const currentSizes = product.sizes as any[];
-        const updatedSizes = currentSizes.map((size: any) => {
-          if (size.size === item.size) {
-            return { ...size, stock: size.stock + item.quantity };
+        const sizeColorMatrix = product.sizeColorMatrix as Record<string, Record<string, number>>;
+        const currentStock = sizeColorMatrix[item.size]?.[item.color] || 0;
+        
+        const updatedMatrix = {
+          ...sizeColorMatrix,
+          [item.size]: {
+            ...sizeColorMatrix[item.size],
+            [item.color]: currentStock + item.quantity
           }
-          return size;
-        });
+        };
 
-        const totalStock = updatedSizes.reduce((sum: number, size: any) => sum + size.stock, 0);
+        let totalStock = 0;
+        Object.values(updatedMatrix).forEach((colorMap: any) => {
+          Object.values(colorMap).forEach((stock: any) => {
+            totalStock += stock || 0;
+          });
+        });
 
         await prisma.product.update({
           where: { id: item.productId },
           data: {
-            sizes: updatedSizes,
+            sizeColorMatrix: updatedMatrix,
             stock: totalStock,
             inStock: totalStock > 0,
           },

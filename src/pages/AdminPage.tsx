@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "../contexts/ToastContext";
 import { adminApi } from "../services/admin.api";
+import { reviewApi } from "../services/review.api";
 import { Button } from "../components/ui/Button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Input } from "../components/ui/Input";
@@ -8,6 +9,7 @@ import { Modal } from "../components/ui/Modal";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProductStore } from "../stores/product-store";
+import { Link } from "react-router-dom";
 
 type TabType = "dashboard" | "orders" | "products" | "reviews";
 
@@ -19,6 +21,24 @@ interface ProductFormData {
   brand: string;
   material?: string;
   features?: string;
+}
+
+interface AdminReview {
+  id: string;
+  productId: string;
+  productName: string;
+  productImage: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  rating: number;
+  comment: string;
+  reply: string | null;
+  likes: number;
+  dislikes: number;
+  isVerifiedPurchase: boolean;
+  isApproved: boolean;
+  createdAt: string;
 }
 
 const getErrorMessage = (error: any): string | undefined => {
@@ -51,6 +71,12 @@ export const AdminPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<AdminReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewReply, setReviewReply] = useState<{
+    id: string;
+    reply: string;
+  } | null>(null);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const { showToast } = useToast();
@@ -66,8 +92,6 @@ export const AdminPage: React.FC = () => {
 
   const [productImages, setProductImages] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
-
-  // Нова структура: розміри, кольори та матриця
   const [sizes, setSizes] = useState<string[]>([]);
   const [colors, setColors] = useState<string[]>([]);
   const [sizeColorMatrix, setSizeColorMatrix] = useState<
@@ -92,6 +116,12 @@ export const AdminPage: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === "reviews") {
+      fetchReviews();
+    }
+  }, [activeTab]);
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -105,6 +135,67 @@ export const AdminPage: React.FC = () => {
       showToast("Помилка завантаження даних", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+  try {
+    setReviewsLoading(true);
+    const token = localStorage.getItem('token');
+    const response = await fetch('http://localhost:3000/api/admin/reviews', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
+    });
+    const data = await response.json();
+    console.log('Admin reviews:', data);
+    if (data && data.data && data.data.reviews) {
+      setReviews(data.data.reviews);
+    } else {
+      setReviews([]);
+    }
+  } catch (err) {
+    console.error("Error fetching reviews:", err);
+    showToast("Помилка завантаження відгуків", "error");
+  } finally {
+    setReviewsLoading(false);
+  }
+};
+
+  const handleApproveReview = async (reviewId: string) => {
+    try {
+      await reviewApi.approve(reviewId);
+      showToast("Відгук схвалено", "success");
+      fetchReviews();
+    } catch (err) {
+      showToast("Помилка схвалення відгуку", "error");
+    }
+  };
+
+  const handleRejectReview = async (reviewId: string) => {
+    if (!window.confirm("Ви впевнені, що хочете видалити цей відгук?")) return;
+    try {
+      await reviewApi.reject(reviewId);
+      showToast("Відгук видалено", "success");
+      fetchReviews();
+    } catch (err) {
+      showToast("Помилка видалення відгуку", "error");
+    }
+  };
+
+  const handleAddReply = async (reviewId: string, reply: string) => {
+    if (!reply.trim()) {
+      showToast("Введіть текст відповіді", "error");
+      return;
+    }
+    try {
+      await reviewApi.addReply(reviewId, reply);
+      showToast("Відповідь додано", "success");
+      setReviewReply(null);
+      fetchReviews();
+    } catch (err) {
+      showToast("Помилка додавання відповіді", "error");
     }
   };
 
@@ -259,16 +350,11 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Навігація */}
       <div className="bg-white border-b border-accent sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-1">
-              <button
-                onClick={() => setActiveTab("reviews")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "reviews" ? "bg-button text-text" : "text-text/70 hover:bg-accent"}`}
-              >
-                💬 Відгуки
-              </button>
               <button
                 onClick={() => setActiveTab("dashboard")}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "dashboard" ? "bg-button text-text" : "text-text/70 hover:bg-accent"}`}
@@ -287,6 +373,12 @@ export const AdminPage: React.FC = () => {
               >
                 👟 Товари
               </button>
+              <button
+                onClick={() => setActiveTab("reviews")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "reviews" ? "bg-button text-text" : "text-text/70 hover:bg-accent"}`}
+              >
+                💬 Відгуки
+              </button>
             </div>
             {activeTab === "products" && (
               <Button onClick={() => setShowAddProductModal(true)} size="sm">
@@ -298,6 +390,7 @@ export const AdminPage: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* ДАШБОРД */}
         {activeTab === "dashboard" && stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white rounded-xl shadow-soft border border-accent p-6">
@@ -355,6 +448,7 @@ export const AdminPage: React.FC = () => {
           </div>
         )}
 
+        {/* ЗАМОВЛЕННЯ */}
         {activeTab === "orders" && (
           <div className="bg-white rounded-xl shadow-soft border border-accent overflow-hidden">
             <div className="px-6 py-4 border-b border-accent">
@@ -479,6 +573,7 @@ export const AdminPage: React.FC = () => {
           </div>
         )}
 
+        {/* ТОВАРИ */}
         {activeTab === "products" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product) => (
@@ -542,8 +637,164 @@ export const AdminPage: React.FC = () => {
             ))}
           </div>
         )}
+
+        {/* ВІДГУКИ */}
+        {activeTab === "reviews" && (
+          <div className="bg-white rounded-xl shadow-soft border border-accent overflow-hidden">
+            <div className="px-6 py-4 border-b border-accent">
+              <h2 className="text-xl font-semibold text-text">
+                Відгуки покупців
+              </h2>
+              <p className="text-sm text-text/50">
+                Тут ви можете схвалювати, відхиляти та відповідати на відгуки
+              </p>
+            </div>
+
+            {reviewsLoading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="text-center py-12 text-text/50">
+                Немає відгуків
+              </div>
+            ) : (
+              <div className="divide-y divide-accent">
+                {reviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="p-6 hover:bg-accent/10 transition"
+                  >
+                    <div className="flex justify-between items-start flex-wrap gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap mb-2">
+                          <span className="font-semibold text-text">
+                            {review.userName}
+                          </span>
+                          <span className="text-sm text-text/50">
+                            ({review.userEmail})
+                          </span>
+                          <div className="flex text-amber-500">
+                            {"★".repeat(review.rating)}
+                            {"☆".repeat(5 - review.rating)}
+                          </div>
+                          {review.isVerifiedPurchase && (
+                            <span className="text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">
+                              Підтверджена покупка
+                            </span>
+                          )}
+                          {!review.isApproved && (
+                            <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full">
+                              Очікує модерації
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-text mb-2">{review.comment}</p>
+                        <div className="flex items-center gap-4 text-sm text-text/50">
+                          <span>
+                            Товар:{" "}
+                            <Link
+                              to={`/product/${review.productId}`}
+                              className="text-button hover:underline"
+                            >
+                              {review.productName}
+                            </Link>
+                          </span>
+                          <span>
+                            Дата:{" "}
+                            {new Date(review.createdAt).toLocaleDateString(
+                              "uk-UA",
+                            )}
+                          </span>
+                          <div className="flex gap-2">
+                            👍 {review.likes} 👎 {review.dislikes}
+                          </div>
+                        </div>
+
+                        {/* Форма відповіді – спрощена */}
+                        {reviewReply?.id === review.id ? (
+                          <div className="mt-3">
+                            <textarea
+                              value={reviewReply.reply}
+                              onChange={(e) =>
+                                setReviewReply({
+                                  id: review.id,
+                                  reply: e.target.value,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-accent rounded-lg"
+                              rows={2}
+                              placeholder="Введіть відповідь..."
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  handleAddReply(review.id, reviewReply.reply)
+                                }
+                              >
+                                Надіслати
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setReviewReply(null)}
+                              >
+                                Скасувати
+                              </Button>
+                            </div>
+                          </div>
+                        ) : review.reply ? (
+                          <div className="mt-3 pl-4 border-l-2 border-button">
+                            <p className="text-sm font-medium text-button">
+                              Відповідь адміністратора:
+                            </p>
+                            <p className="text-text/70 text-sm mt-1">
+                              {review.reply}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="flex gap-2 flex-shrink-0">
+                        {!review.isApproved && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveReview(review.id)}
+                          >
+                            ✓ Схвалити
+                          </Button>
+                        )}
+                        {review.isApproved && !review.reply && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setReviewReply({ id: review.id, reply: "" })
+                            }
+                          >
+                            💬 Відповісти
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-error border-error/30"
+                          onClick={() => handleRejectReview(review.id)}
+                        >
+                          ✗ Видалити
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* МОДАЛЬНЕ ВІКНО */}
       <Modal
         isOpen={showAddProductModal}
         onClose={() => {
@@ -658,7 +909,6 @@ export const AdminPage: React.FC = () => {
                 ))}
               </div>
             </div>
-
             <div className="bg-accent/10 rounded-xl p-4">
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 🎨 Кольори

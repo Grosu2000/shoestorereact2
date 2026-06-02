@@ -27,22 +27,24 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [mainImageLoaded, setMainImageLoaded] = useState(false);
-  
+
   // Стан для форми відгуку
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-  const images = product?.images?.length ? product.images : ["/images/placeholder.jpg"];
-  
+  const images = product?.images?.length
+    ? product.images
+    : ["/images/placeholder.jpg"];
+
   const sizeColorMatrix = product?.sizeColorMatrix || {};
   const sizes = Object.keys(sizeColorMatrix);
   const colorsSet = new Set<string>();
   Object.values(sizeColorMatrix).forEach((colorMap: any) => {
-    Object.keys(colorMap).forEach(color => colorsSet.add(color));
+    Object.keys(colorMap).forEach((color) => colorsSet.add(color));
   });
   const colors = Array.from(colorsSet);
-  
+
   const maxAvailable = sizeColorMatrix[selectedSize]?.[selectedColor] || 0;
   const isWishlisted = product ? isInWishlist(product.id) : false;
 
@@ -73,7 +75,9 @@ export const ProductDetailPage: React.FC = () => {
           const firstSize = Object.keys(productData.sizeColorMatrix || {})[0];
           if (firstSize) {
             setSelectedSize(firstSize);
-            const firstColor = Object.keys(productData.sizeColorMatrix[firstSize] || {})[0];
+            const firstColor = Object.keys(
+              productData.sizeColorMatrix[firstSize] || {},
+            )[0];
             if (firstColor) setSelectedColor(firstColor);
           }
         } else {
@@ -92,7 +96,10 @@ export const ProductDetailPage: React.FC = () => {
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) return;
     if (newQuantity > maxAvailable) {
-      showToast(`Доступно лише ${maxAvailable} шт. цього розміру та кольору`, "error");
+      showToast(
+        `Доступно лише ${maxAvailable} шт. цього розміру та кольору`,
+        "error",
+      );
       return;
     }
     setQuantity(newQuantity);
@@ -101,7 +108,10 @@ export const ProductDetailPage: React.FC = () => {
   const handleSizeChange = (size: string) => {
     setSelectedSize(size);
     const availableColors = Object.keys(sizeColorMatrix[size] || {});
-    if (!availableColors.includes(selectedColor) && availableColors.length > 0) {
+    if (
+      !availableColors.includes(selectedColor) &&
+      availableColors.length > 0
+    ) {
       setSelectedColor(availableColors[0]);
     }
     setQuantity(1);
@@ -141,7 +151,10 @@ export const ProductDetailPage: React.FC = () => {
       return;
     }
     if (quantity > maxAvailable) {
-      showToast(`Доступно лише ${maxAvailable} шт. цього розміру та кольору`, "error");
+      showToast(
+        `Доступно лише ${maxAvailable} шт. цього розміру та кольору`,
+        "error",
+      );
       return;
     }
     addItem(product, selectedSize, selectedColor, quantity);
@@ -159,7 +172,10 @@ export const ProductDetailPage: React.FC = () => {
       return;
     }
     if (quantity > maxAvailable) {
-      showToast(`Доступно лише ${maxAvailable} шт. цього розміру та кольору`, "error");
+      showToast(
+        `Доступно лише ${maxAvailable} шт. цього розміру та кольору`,
+        "error",
+      );
       return;
     }
     addItem(product, selectedSize, selectedColor, quantity);
@@ -169,13 +185,13 @@ export const ProductDetailPage: React.FC = () => {
   // Функція для відправки відгуку
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       showToast("Увійдіть, щоб залишити відгук", "error");
       navigate("/login");
       return;
     }
-    
+
     if (reviewRating === 0) {
       showToast("Будь ласка, оберіть рейтинг", "error");
       return;
@@ -183,12 +199,18 @@ export const ProductDetailPage: React.FC = () => {
 
     setIsSubmittingReview(true);
     try {
-      await reviewApi.create(product!.id, { rating: reviewRating, comment: reviewComment });
-      showToast("Відгук додано! Після модерації він з'явиться на сайті", "success");
+      await reviewApi.create(product!.id, {
+        rating: reviewRating,
+        comment: reviewComment,
+      });
+      showToast(
+        "Відгук додано! Після модерації він з'явиться на сайті",
+        "success",
+      );
       setReviewRating(0);
       setReviewComment("");
       // Оновлюємо список відгуків
-      window.dispatchEvent(new Event('review-added'));
+      window.dispatchEvent(new Event("review-added"));
     } catch (error: any) {
       showToast(error.message || "Помилка додавання відгуку", "error");
     } finally {
@@ -223,19 +245,31 @@ export const ProductDetailPage: React.FC = () => {
   }
 
   const discountPercentage = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(
+        ((product.originalPrice - product.price) / product.originalPrice) * 100,
+      )
     : 0;
 
-  const availableColorsForSize = Object.keys(sizeColorMatrix[selectedSize] || {});
+  const availableColorsForSize = Object.keys(
+    sizeColorMatrix[selectedSize] || {},
+  );
 
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex mb-8 text-sm">
           <ol className="flex items-center space-x-2 text-text/60">
-            <li><Link to="/" className="hover:text-text">Головна</Link></li>
+            <li>
+              <Link to="/" className="hover:text-text">
+                Головна
+              </Link>
+            </li>
             <li>/</li>
-            <li><Link to="/products" className="hover:text-text">Товари</Link></li>
+            <li>
+              <Link to="/products" className="hover:text-text">
+                Товари
+              </Link>
+            </li>
             <li>/</li>
             <li className="text-text font-medium truncate">{product.name}</li>
           </ol>
@@ -272,7 +306,11 @@ export const ProductDetailPage: React.FC = () => {
                     }`}
                   >
                     <div className="aspect-square">
-                      <img src={img} alt={`${product.name} - фото ${idx + 1}`} className="w-full h-full object-cover" />
+                      <img
+                        src={img}
+                        alt={`${product.name} - фото ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   </button>
                 ))}
@@ -289,9 +327,13 @@ export const ProductDetailPage: React.FC = () => {
 
             <div className="flex items-center gap-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-text">{product.price} грн</span>
+                <span className="text-3xl font-bold text-text">
+                  {product.price} грн
+                </span>
                 {product.originalPrice && (
-                  <span className="text-lg text-text/40 line-through">{product.originalPrice} грн</span>
+                  <span className="text-lg text-text/40 line-through">
+                    {product.originalPrice} грн
+                  </span>
                 )}
               </div>
               {discountPercentage > 0 && (
@@ -307,9 +349,13 @@ export const ProductDetailPage: React.FC = () => {
                   {"★".repeat(Math.floor(product.rating || 0))}
                   {"☆".repeat(5 - Math.floor(product.rating || 0))}
                 </div>
-                <span className="ml-2 text-text/60">({product.reviewCount || 0} відгуків)</span>
+                <span className="ml-2 text-text/60">
+                  ({product.reviewCount || 0} відгуків)
+                </span>
               </div>
-              <span className={`px-2 py-1 text-xs rounded-full ${product.inStock ? 'bg-success/20 text-success-dark' : 'bg-error/20 text-error'}`}>
+              <span
+                className={`px-2 py-1 text-xs rounded-full ${product.inStock ? "bg-success/20 text-success-dark" : "bg-error/20 text-error"}`}
+              >
                 {product.inStock ? "В наявності" : "Немає"}
               </span>
             </div>
@@ -321,10 +367,17 @@ export const ProductDetailPage: React.FC = () => {
             {/* Вибір розміру */}
             {sizes.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-text mb-2">Розмір</label>
+                <label className="block text-sm font-medium text-text mb-2">
+                  Розмір
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {sizes.map((size) => {
-                    const totalStockForSize = Object.values(sizeColorMatrix[size] || {}).reduce((sum: number, stock: any) => sum + (stock || 0), 0);
+                    const totalStockForSize = Object.values(
+                      sizeColorMatrix[size] || {},
+                    ).reduce(
+                      (sum: number, stock: any) => sum + (stock || 0),
+                      0,
+                    );
                     return (
                       <button
                         key={size}
@@ -340,7 +393,9 @@ export const ProductDetailPage: React.FC = () => {
                       >
                         {size}
                         {totalStockForSize === 0 && " (немає)"}
-                        {totalStockForSize > 0 && totalStockForSize < 5 && ` (лише ${totalStockForSize})`}
+                        {totalStockForSize > 0 &&
+                          totalStockForSize < 5 &&
+                          ` (лише ${totalStockForSize})`}
                       </button>
                     );
                   })}
@@ -351,10 +406,13 @@ export const ProductDetailPage: React.FC = () => {
             {/* Вибір кольору */}
             {colors.length > 0 && selectedSize && (
               <div>
-                <label className="block text-sm font-medium text-text mb-2">Колір</label>
+                <label className="block text-sm font-medium text-text mb-2">
+                  Колір
+                </label>
                 <div className="flex flex-wrap gap-3">
                   {availableColorsForSize.map((color) => {
-                    const stockForColor = sizeColorMatrix[selectedSize]?.[color] || 0;
+                    const stockForColor =
+                      sizeColorMatrix[selectedSize]?.[color] || 0;
                     return (
                       <button
                         key={color}
@@ -369,7 +427,9 @@ export const ProductDetailPage: React.FC = () => {
                         }`}
                       >
                         {color}
-                        {stockForColor > 0 && stockForColor < 5 && ` (${stockForColor})`}
+                        {stockForColor > 0 &&
+                          stockForColor < 5 &&
+                          ` (${stockForColor})`}
                       </button>
                     );
                   })}
@@ -379,7 +439,9 @@ export const ProductDetailPage: React.FC = () => {
 
             {/* Кількість */}
             <div>
-              <label className="block text-sm font-medium text-text mb-2">Кількість</label>
+              <label className="block text-sm font-medium text-text mb-2">
+                Кількість
+              </label>
               <div className="flex items-center gap-4">
                 <div className="flex items-center border border-accent rounded-lg">
                   <button
@@ -405,24 +467,52 @@ export const ProductDetailPage: React.FC = () => {
                 </span>
               </div>
               {maxAvailable < 5 && maxAvailable > 0 && (
-                <p className="text-xs text-error mt-1">Увага! Залишилось лише {maxAvailable} шт.</p>
+                <p className="text-xs text-error mt-1">
+                  Увага! Залишилось лише {maxAvailable} шт.
+                </p>
               )}
             </div>
 
             {/* Кнопки дії */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button onClick={handleWishlist} variant="outline" className="flex-1" size="lg">
+              <Button
+                onClick={handleWishlist}
+                variant="outline"
+                className="flex-1"
+                size="lg"
+              >
                 <span className="flex items-center justify-center gap-2">
-                  <svg className={`w-5 h-5 ${isWishlisted ? 'fill-red-500 text-red-500' : 'fill-none'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  <svg
+                    className={`w-5 h-5 ${isWishlisted ? "fill-red-500 text-red-500" : "fill-none"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
                   </svg>
                   {isWishlisted ? "У бажаннях" : "Додати в бажання"}
                 </span>
               </Button>
-              <Button onClick={handleAddToCart} className="flex-1" size="lg" disabled={maxAvailable === 0 || !selectedSize || !selectedColor}>
+              <Button
+                onClick={handleAddToCart}
+                className="flex-1"
+                size="lg"
+                disabled={maxAvailable === 0 || !selectedSize || !selectedColor}
+              >
                 {maxAvailable === 0 ? "Немає в наявності" : "Додати до кошика"}
               </Button>
-              <Button onClick={handleBuyNow} variant="secondary" className="flex-1" size="lg" disabled={maxAvailable === 0 || !selectedSize || !selectedColor}>
+              <Button
+                onClick={handleBuyNow}
+                variant="secondary"
+                className="flex-1"
+                size="lg"
+                disabled={maxAvailable === 0 || !selectedSize || !selectedColor}
+              >
                 Купити зараз
               </Button>
             </div>
@@ -434,24 +524,32 @@ export const ProductDetailPage: React.FC = () => {
                 {product.material && (
                   <div className="flex justify-between items-center py-2 border-b border-accent/30">
                     <span className="text-text/60">Матеріал:</span>
-                    <span className="font-medium text-text">{product.material}</span>
+                    <span className="font-medium text-text">
+                      {product.material}
+                    </span>
                   </div>
                 )}
                 {product.country && (
                   <div className="flex justify-between items-center py-2 border-b border-accent/30">
                     <span className="text-text/60">Країна:</span>
-                    <span className="font-medium text-text">{product.country}</span>
+                    <span className="font-medium text-text">
+                      {product.country}
+                    </span>
                   </div>
                 )}
                 {product.releaseYear && (
                   <div className="flex justify-between items-center py-2 border-b border-accent/30">
                     <span className="text-text/60">Рік випуску:</span>
-                    <span className="font-medium text-text">{product.releaseYear}</span>
+                    <span className="font-medium text-text">
+                      {product.releaseYear}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between items-center py-2 border-b border-accent/30">
                   <span className="text-text/60">Артикул:</span>
-                  <span className="font-medium text-text">{product.id.slice(-8)}</span>
+                  <span className="font-medium text-text">
+                    {product.id.slice(-8)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -459,18 +557,25 @@ export const ProductDetailPage: React.FC = () => {
             {/* ФОРМА ВІДГУКУ */}
             <div className="border-t border-accent pt-6 mt-4">
               <h3 className="text-lg font-semibold mb-4">Залишити відгук</h3>
-              
+
               {!user ? (
                 <div className="bg-white p-6 rounded-xl shadow-soft border border-accent text-center">
-                  <p className="text-text/60 mb-3">Увійдіть, щоб залишити відгук</p>
+                  <p className="text-text/60 mb-3">
+                    Увійдіть, щоб залишити відгук
+                  </p>
                   <Link to="/login">
                     <Button variant="outline">Увійти</Button>
                   </Link>
                 </div>
               ) : (
-                <form onSubmit={handleSubmitReview} className="bg-white p-6 rounded-xl shadow-soft border border-accent space-y-4">
+                <form
+                  onSubmit={handleSubmitReview}
+                  className="bg-white p-6 rounded-xl shadow-soft border border-accent space-y-4"
+                >
                   <div>
-                    <label className="block text-sm font-medium text-text mb-2">Ваша оцінка</label>
+                    <label className="block text-sm font-medium text-text mb-2">
+                      Ваша оцінка
+                    </label>
                     <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
@@ -479,14 +584,16 @@ export const ProductDetailPage: React.FC = () => {
                           onClick={() => setReviewRating(star)}
                           className="text-2xl focus:outline-none transition hover:scale-110"
                         >
-                          {star <= reviewRating ? '★' : '☆'}
+                          {star <= reviewRating ? "★" : "☆"}
                         </button>
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
-                    <label className="block text-sm font-medium text-text mb-2">Ваш коментар</label>
+                    <label className="block text-sm font-medium text-text mb-2">
+                      Ваш коментар
+                    </label>
                     <textarea
                       value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}
@@ -495,7 +602,7 @@ export const ProductDetailPage: React.FC = () => {
                       placeholder="Поділіться враженнями про товар..."
                     />
                   </div>
-                  
+
                   <Button
                     type="submit"
                     disabled={isSubmittingReview || reviewRating === 0}

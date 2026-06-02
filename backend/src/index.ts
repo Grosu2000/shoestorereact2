@@ -122,8 +122,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/products/:productId/reviews', reviewRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/products/:productId/reviews', reviewRoutes);
-app.use('/api/admin/reviews', adminReviewRouter);
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/api/admin/reviews', adminReviewRouter);
+
 
 app.get('/api/health', async (req, res) => {
   try {
