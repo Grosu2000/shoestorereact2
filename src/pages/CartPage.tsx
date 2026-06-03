@@ -7,10 +7,11 @@ import { useToast } from "../contexts/ToastContext";
 import { getFirstImage } from "../utils/imageHelpers";
 
 export const CartPage: React.FC = () => {
-  const { cart, updateQuantity, removeItem, clearCart, getTotalPrice } = useCartStore();
+  const { cart, updateQuantity, removeItem, clearCart, getTotalPrice } =
+    useCartStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
-  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removingId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -30,20 +31,30 @@ export const CartPage: React.FC = () => {
   };
 
   const handleQuantityChange = (item: any, newQuantity: number) => {
+    const sizeColorMatrix = item.product.sizeColorMatrix || {};
+    const availableStock =
+      sizeColorMatrix[item.selectedSize]?.[item.selectedColor] || 0;
+
     if (newQuantity < 1) {
-      setRemovingId(`${item.product.id}-${item.selectedSize}-${item.selectedColor}`);
-      setTimeout(() => {
-        removeItem(item.product.id, item.selectedSize, item.selectedColor);
-        setRemovingId(null);
-        showToast("Товар видалено з кошика", "info");
-      }, 200);
-      return;
+      removeItem(item.product.id, item.selectedSize, item.selectedColor);
+      showToast("Товар видалено з кошика", "info");
+    } else if (newQuantity > availableStock) {
+      showToast(
+        `Доступно лише ${availableStock} шт. цього розміру та кольору`,
+        "error",
+      );
+    } else {
+      updateQuantity(
+        item.product.id,
+        item.selectedSize,
+        item.selectedColor,
+        newQuantity,
+      );
     }
-    updateQuantity(item.product.id, item.selectedSize, item.selectedColor, newQuantity);
   };
 
   const handleContinueShopping = () => navigate("/products");
-  
+
   const handleCheckout = () => {
     if (cart.items.length === 0) {
       showToast("Кошик порожній", "error");
@@ -69,9 +80,14 @@ export const CartPage: React.FC = () => {
           <div className="text-6xl mb-4 opacity-50">🛒</div>
           <h1 className="text-2xl font-bold text-text mb-4">Кошик порожній</h1>
           <p className="text-text/60 mb-8 max-w-md mx-auto">
-            Додайте товари до кошика, щоб зробити покупку. У нас є багато чудових пар взуття, які чекають на вас!
+            Додайте товари до кошика, щоб зробити покупку. У нас є багато
+            чудових пар взуття, які чекають на вас!
           </p>
-          <Button onClick={handleContinueShopping} size="lg" className="px-8 py-3 text-lg">
+          <Button
+            onClick={handleContinueShopping}
+            size="lg"
+            className="px-8 py-3 text-lg"
+          >
             Перейти до товарів
           </Button>
         </div>
@@ -93,7 +109,8 @@ export const CartPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-text">Кошик</h1>
             <p className="text-text/60 mt-1">
-              {cart.itemCount} товар{cart.itemCount !== 1 ? "и" : ""} · {getTotalPrice()} грн
+              {cart.itemCount} товар{cart.itemCount !== 1 ? "и" : ""} ·{" "}
+              {getTotalPrice()} грн
             </p>
           </div>
           <Button
@@ -109,15 +126,15 @@ export const CartPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Ліва колонка - список товарів */}
           <div className="lg:col-span-2 space-y-4">
-            {cart.items.map((item, index) => {
+            {cart.items.map((item) => {
               const itemKey = `${item.product.id}-${item.selectedSize}-${item.selectedColor}`;
               const isRemoving = removingId === itemKey;
-              
+
               return (
                 <div
                   key={itemKey}
                   className={`bg-white rounded-xl shadow-soft border border-accent overflow-hidden transition-all duration-300 ${
-                    isRemoving ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                    isRemoving ? "opacity-0 scale-95" : "opacity-100 scale-100"
                   }`}
                 >
                   <div className="p-6 flex flex-col md:flex-row gap-6">
@@ -128,7 +145,8 @@ export const CartPage: React.FC = () => {
                         alt={item.product.name}
                         className="w-32 h-32 object-cover rounded-lg"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/images/placeholder.jpg";
+                          (e.target as HTMLImageElement).src =
+                            "/images/placeholder.jpg";
                         }}
                       />
                     </div>
@@ -142,7 +160,9 @@ export const CartPage: React.FC = () => {
                               {item.product.name}
                             </h3>
                           </Link>
-                          <p className="text-text/60 text-sm mt-1">{item.product.brand}</p>
+                          <p className="text-text/60 text-sm mt-1">
+                            {item.product.brand}
+                          </p>
                           <div className="flex flex-wrap gap-2 mt-2 text-sm">
                             <span className="bg-accent/50 px-2 py-0.5 rounded-full">
                               Розмір: {item.selectedSize}
@@ -153,12 +173,13 @@ export const CartPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-xl font-bold text-text">
-                            {item.product.price * item.quantity} грн
+                          <div className="text-lg font-bold text-text">
+                            {Math.round(item.priceAtAdd * item.quantity)} грн
                           </div>
                           {item.quantity > 1 && (
                             <div className="text-sm text-text/50">
-                              {item.product.price} грн × {item.quantity}
+                              {Math.floor(item.priceAtAdd * item.quantity)} грн
+                  
                             </div>
                           )}
                         </div>
@@ -166,31 +187,79 @@ export const CartPage: React.FC = () => {
 
                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-accent/50">
                         {/* Кількість */}
-                        <div className="flex items-center border border-accent rounded-lg">
-                          <button
-                            onClick={() => handleQuantityChange(item, item.quantity - 1)}
-                            className="w-10 h-10 flex items-center justify-center text-text hover:bg-accent rounded-l-lg transition disabled:opacity-50"
-                            disabled={item.quantity <= 1}
-                          >
-                            -
-                          </button>
-                          <span className="w-12 text-center font-medium">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => handleQuantityChange(item, item.quantity + 1)}
-                            className="w-10 h-10 flex items-center justify-center text-text hover:bg-accent rounded-r-lg transition"
-                          >
-                            +
-                          </button>
-                        </div>
+
+                        {(() => {
+                          const maxAvailable =
+                            item.product.sizeColorMatrix?.[item.selectedSize]?.[
+                              item.selectedColor
+                            ] || 0;
+
+                          return (
+                            <div className="bg-white rounded-xl shadow-soft border border-accent p-4">
+                              <div className="flex justify-between items-center mt-3">
+                                <div className="flex items-center border border-accent rounded-lg">
+                                  <button
+                                    onClick={() =>
+                                      handleQuantityChange(
+                                        item,
+                                        item.quantity - 1,
+                                      )
+                                    }
+                                    className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded-l-lg transition disabled:opacity-50"
+                                    disabled={item.quantity <= 1}
+                                  >
+                                    -
+                                  </button>
+
+                                  <span className="w-10 text-center font-medium">
+                                    {item.quantity}
+                                  </span>
+
+                                  <button
+                                    onClick={() =>
+                                      handleQuantityChange(
+                                        item,
+                                        item.quantity + 1,
+                                      )
+                                    }
+                                    className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded-r-lg transition disabled:opacity-50"
+                                    disabled={item.quantity >= maxAvailable}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+
+                                <div className="font-bold text-text">
+                                  {Math.round(item.priceAtAdd * item.quantity)}{" "}
+                                  грн
+                                </div>
+                              </div>
+
+                              {maxAvailable < 5 && maxAvailable > 0 && (
+                                <p className="text-xs text-error mt-2">
+                                  Увага! Залишилось лише {maxAvailable} шт.
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         <button
                           onClick={() => handleQuantityChange(item, 0)}
                           className="text-text/40 hover:text-error transition p-2"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -204,19 +273,23 @@ export const CartPage: React.FC = () => {
           {/* Права колонка - підсумок */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-soft border border-accent p-6 sticky top-8">
-              <h2 className="text-xl font-bold text-text mb-6">Підсумок замовлення</h2>
+              <h2 className="text-xl font-bold text-text mb-6">
+                Підсумок замовлення
+              </h2>
 
               <div className="space-y-4">
                 <div className="flex justify-between text-text/80">
                   <span>Товари ({cart.itemCount} шт.)</span>
-                  <span>{cart.total} грн</span>
+                  <span>{Math.round(cart.total)} грн</span>
                 </div>
 
                 <div className="flex justify-between text-text/80">
                   <span>Доставка</span>
                   <div className="text-right">
                     {isFreeDelivery ? (
-                      <span className="text-success font-medium">Безкоштовно</span>
+                      <span className="text-success font-medium">
+                        Безкоштовно
+                      </span>
                     ) : (
                       <span>{deliveryCost} грн</span>
                     )}
@@ -226,12 +299,18 @@ export const CartPage: React.FC = () => {
                 {!isFreeDelivery && cart.total < freeDeliveryThreshold && (
                   <div className="bg-accent/30 rounded-lg p-3 text-sm">
                     <p className="text-text/70">
-                      Додайте товарів на <span className="font-bold text-button">{freeDeliveryThreshold - cart.total} грн</span> для безкоштовної доставки
+                      Додайте товарів на{" "}
+                      <span className="font-bold text-button">
+                        {Math.round(freeDeliveryThreshold - cart.total)} грн
+                      </span>{" "}
+                      для безкоштовної доставки
                     </p>
                     <div className="mt-2 h-1.5 bg-accent rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-success rounded-full transition-all duration-300"
-                        style={{ width: `${(cart.total / freeDeliveryThreshold) * 100}%` }}
+                        style={{
+                          width: `${(cart.total / freeDeliveryThreshold) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -241,7 +320,7 @@ export const CartPage: React.FC = () => {
 
                 <div className="flex justify-between text-xl font-bold text-text">
                   <span>Загальна сума</span>
-                  <span>{totalWithDelivery} грн</span>
+                  <span>{Math.round(totalWithDelivery)} грн</span>
                 </div>
 
                 <p className="text-xs text-text/50 text-center">
@@ -250,11 +329,18 @@ export const CartPage: React.FC = () => {
               </div>
 
               <div className="mt-8 space-y-3">
-                <Button onClick={handleCheckout} className="w-full py-3 text-lg font-medium">
+                <Button
+                  onClick={handleCheckout}
+                  className="w-full py-3 text-lg font-medium"
+                >
                   Оформити замовлення
                 </Button>
 
-                <Button onClick={handleContinueShopping} variant="outline" className="w-full py-3">
+                <Button
+                  onClick={handleContinueShopping}
+                  variant="outline"
+                  className="w-full py-3"
+                >
                   Продовжити покупки
                 </Button>
 

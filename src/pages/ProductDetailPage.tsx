@@ -48,6 +48,12 @@ export const ProductDetailPage: React.FC = () => {
   const maxAvailable = sizeColorMatrix[selectedSize]?.[selectedColor] || 0;
   const isWishlisted = product ? isInWishlist(product.id) : false;
 
+  const discountPercent = product?.discountPercent || 0;
+  const finalPrice =
+    discountPercent > 0
+      ? (product?.price || 0) * (1 - discountPercent / 100)
+      : product?.price || 0;
+
   useEffect(() => {
     const fetchProduct = async () => {
       if (!id) {
@@ -139,27 +145,35 @@ export const ProductDetailPage: React.FC = () => {
       showToast("Товар додано до списку бажаних", "success");
     }
   };
+const cartItems = useCartStore((state) => state.cart.items);
 
   const handleAddToCart = () => {
-    if (!product) return;
-    if (!selectedSize) {
-      showToast("Будь ласка, оберіть розмір", "error");
-      return;
-    }
-    if (!selectedColor) {
-      showToast("Будь ласка, оберіть колір", "error");
-      return;
-    }
-    if (quantity > maxAvailable) {
-      showToast(
-        `Доступно лише ${maxAvailable} шт. цього розміру та кольору`,
-        "error",
-      );
-      return;
-    }
-    addItem(product, selectedSize, selectedColor, quantity);
-    showToast(`Товар додано до кошика! (${quantity} шт.)`, "success");
-  };
+  if (!product) return;
+  if (!selectedSize) {
+    showToast("Будь ласка, оберіть розмір", "error");
+    return;
+  }
+  if (!selectedColor) {
+    showToast("Будь ласка, оберіть колір", "error");
+    return;
+  }
+  
+  const currentInCart = cartItems.find(
+  (item: any) => item.product.id === product.id && 
+          item.selectedSize === selectedSize && 
+          item.selectedColor === selectedColor
+)?.quantity || 0;
+  
+  const totalAfterAdd = currentInCart + quantity;
+  
+  if (totalAfterAdd > maxAvailable) {
+    showToast(`Ви не можете додати більше ${maxAvailable} шт. цього товару (в кошику вже ${currentInCart})`, "error");
+    return;
+  }
+  
+  addItem(product, selectedSize, selectedColor, quantity);
+  showToast(`Товар додано до кошика! (${quantity} шт.)`, "success");
+};
 
   const handleBuyNow = () => {
     if (!product) return;
@@ -244,11 +258,6 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const discountPercentage = product.originalPrice
-    ? Math.round(
-        ((product.originalPrice - product.price) / product.originalPrice) * 100,
-      )
-    : 0;
 
   const availableColorsForSize = Object.keys(
     sizeColorMatrix[selectedSize] || {},
@@ -327,18 +336,29 @@ export const ProductDetailPage: React.FC = () => {
 
             <div className="flex items-center gap-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-text">
-                  {product.price} грн
-                </span>
+                {discountPercent > 0 ? (
+                  <>
+                    <span className="text-3xl font-bold text-error">
+                      {Math.round(finalPrice)} грн
+                    </span>
+                    <span className="text-lg text-text/40 line-through">
+                      {product.price} грн
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-3xl font-bold text-text">
+                    {product.price} грн
+                  </span>
+                )}
                 {product.originalPrice && (
                   <span className="text-lg text-text/40 line-through">
                     {product.originalPrice} грн
                   </span>
                 )}
               </div>
-              {discountPercentage > 0 && (
+              {discountPercent > 0 && (
                 <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  -{discountPercentage}%
+                  -{discountPercent}%
                 </span>
               )}
             </div>

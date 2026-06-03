@@ -21,6 +21,7 @@ interface ProductFormData {
   brand: string;
   material?: string;
   features?: string;
+  discountPercent?: string;
 }
 
 interface AdminReview {
@@ -139,29 +140,29 @@ export const AdminPage: React.FC = () => {
   };
 
   const fetchReviews = async () => {
-  try {
-    setReviewsLoading(true);
-    const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:3000/api/admin/reviews', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Cache-Control': 'no-cache'
+    try {
+      setReviewsLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3000/api/admin/reviews", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache",
+        },
+      });
+      const data = await response.json();
+      console.log("Admin reviews:", data);
+      if (data && data.data && data.data.reviews) {
+        setReviews(data.data.reviews);
+      } else {
+        setReviews([]);
       }
-    });
-    const data = await response.json();
-    console.log('Admin reviews:', data);
-    if (data && data.data && data.data.reviews) {
-      setReviews(data.data.reviews);
-    } else {
-      setReviews([]);
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+      showToast("Помилка завантаження відгуків", "error");
+    } finally {
+      setReviewsLoading(false);
     }
-  } catch (err) {
-    console.error("Error fetching reviews:", err);
-    showToast("Помилка завантаження відгуків", "error");
-  } finally {
-    setReviewsLoading(false);
-  }
-};
+  };
 
   const handleApproveReview = async (reviewId: string) => {
     try {
@@ -262,6 +263,7 @@ export const AdminPage: React.FC = () => {
       formData.append("sizes", JSON.stringify(sizes));
       formData.append("colors", JSON.stringify(colors));
       formData.append("sizeColorMatrix", JSON.stringify(sizeColorMatrix));
+      formData.append("discountPercent", data.discountPercent || "0");
       productImages.forEach((file) => formData.append("images", file));
 
       if (selectedProduct) {
@@ -309,6 +311,7 @@ export const AdminPage: React.FC = () => {
       features: Array.isArray(product.features)
         ? product.features.join(", ")
         : product.features || "",
+      discountPercent: product.discountPercent?.toString() || "0",
     });
     setSizes(product.sizes || []);
     setColors(product.colors || []);
@@ -1006,6 +1009,21 @@ export const AdminPage: React.FC = () => {
                 Матеріал
               </label>
               <Input {...registerProduct("material")} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Знижка (%)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="0"
+                {...registerProduct("discountPercent")}
+              />
+              <p className="text-xs text-text/50 mt-1">
+                Введіть відсоток знижки (0-100)
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useProductStore } from '../stores/product-store';
 import { ProductCard } from '../components/product/ProductCard';
@@ -6,7 +6,6 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export const HomePage: React.FC = () => {
   const { products, isLoading, fetchProducts } = useProductStore();
-  const [activeCategory, setActiveCategory] = useState('all');
 
   useEffect(() => {
     fetchProducts();
@@ -24,16 +23,10 @@ export const HomePage: React.FC = () => {
     };
   }, []);
 
-  // Нові товари (останні 8)
+
   const newProducts = products.slice(0, 8);
 
-  // Категорії для навігації
-  const categories = [
-    { id: 'all', name: 'Всі', icon: '👟' },
-    { id: 'sneakers', name: 'Кросівки', icon: '👟' },
-    { id: 'boots', name: 'Черевики', icon: '👞' },
-    { id: 'loafers', name: 'Лофери', icon: '👞' },
-  ];
+ 
 
   if (isLoading) {
     return (
@@ -77,28 +70,6 @@ export const HomePage: React.FC = () => {
                 className="w-full max-w-md mx-auto object-contain rounded-2xl"
               />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* КАТЕГОРІЇ */}
-      <section className="py-10 border-b border-accent">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap justify-center gap-4">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`px-5 py-2 rounded-full font-medium transition-all duration-300 ${
-                  activeCategory === cat.id
-                    ? 'bg-button text-text shadow-sm'
-                    : 'text-text/70 hover:text-text'
-                }`}
-              >
-                <span className="mr-1">{cat.icon}</span>
-                {cat.name}
-              </button>
-            ))}
           </div>
         </div>
       </section>

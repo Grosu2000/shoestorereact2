@@ -29,6 +29,7 @@ model Product {
   slug          String   @unique
   price         Float
   originalPrice Float?
+  discountPercent Int @default(0)
   description   String
   category      String
   brand         String

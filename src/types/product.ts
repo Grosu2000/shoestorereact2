@@ -8,6 +8,7 @@ export interface Product {
   name: string;
   price: number;
   originalPrice?: number;
+  discountPercent?: number;
   image: string;
   images: string[];
   description: string;
@@ -16,9 +17,11 @@ export interface Product {
   sizes: ProductSize[];
   colors: string[];
   colorStocks?: Array<{ color: string; stock: number }>;
-  variants?: Array<{ size: string; color: string; stock: number }>; // ← ДОДАТИ СЮДИ
-  inStock: boolean;
+  variants?: Array<{ size: string; color: string; stock: number }>;
+  sizeColorMatrix?: Record<string, Record<string, number>>;
+  inStock: boolean; 
   stockQuantity: number;
+  stock: number; 
   rating: number;
   reviewCount: number;
   features: string[];
@@ -27,7 +30,6 @@ export interface Product {
   country: string;
   createdAt: string;
   updatedAt?: string;
-  sizeColorMatrix?: Record<string, Record<string, number>>;
 }
 
 export interface CartItem {
@@ -35,6 +37,7 @@ export interface CartItem {
   quantity: number;
   selectedSize: string;
   selectedColor: string;
+  priceAtAdd: number;
 }
 
 export interface Cart {
@@ -176,6 +179,7 @@ export interface ProductCreateData {
   sizes: ProductSize[];
   colors: string[];
   stockQuantity: number;
+  discountPercent?: number;
   features: string[];
   material: string;
   releaseYear: number;

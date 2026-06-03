@@ -4,7 +4,6 @@ import { useProducts } from '../hooks/useProducts';
 import { ProductGrid } from '../components/product/ProductGrid';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export const ProductPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();

@@ -22,6 +22,11 @@ export const useCartStore = create<CartStore>()(
       },
 
       addItem: (product, size, color, quantity = 1) => {
+        const discountPercent = product.discountPercent || 0;
+        const priceAtAdd = discountPercent > 0 
+          ? product.price * (1 - discountPercent / 100) 
+          : product.price;
+
         set((state) => {
           const existingItemIndex = state.cart.items.findIndex(
             item => 
@@ -41,15 +46,16 @@ export const useCartStore = create<CartStore>()(
           } else {
             const newItem: CartItem = {
               product,
-              quantity: quantity,
+              quantity,
               selectedSize: size,
               selectedColor: color,
+              priceAtAdd,
             };
             newItems = [...state.cart.items, newItem];
           }
 
           const itemCount = newItems.reduce((sum, item) => sum + item.quantity, 0);
-          const total = newItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+          const total = newItems.reduce((sum, item) => sum + (item.priceAtAdd * item.quantity), 0);
 
           return {
             cart: {
@@ -71,7 +77,7 @@ export const useCartStore = create<CartStore>()(
           );
 
           const itemCount = newItems.reduce((sum, item) => sum + item.quantity, 0);
-          const total = newItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+          const total = newItems.reduce((sum, item) => sum + (item.priceAtAdd * item.quantity), 0);
 
           return {
             cart: {
@@ -99,7 +105,7 @@ export const useCartStore = create<CartStore>()(
           );
 
           const itemCount = newItems.reduce((sum, item) => sum + item.quantity, 0);
-          const total = newItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+          const total = newItems.reduce((sum, item) => sum + (item.priceAtAdd * item.quantity), 0);
 
           return {
             cart: {

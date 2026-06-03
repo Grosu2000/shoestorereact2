@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { useCartStore } from '../stores/cart-store';
-import { useAuthStore } from '../stores/auth-store';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { useToast } from '../contexts/ToastContext';
-import { orderApi } from '../services/order.api';
-import { paymentApi } from '../services/payment.api';
-import type { LiqPayConfig } from '../services/payment.api';
-import type { CreateOrderData } from '../services/order.api';
-import { getFirstImage } from '../utils/imageHelpers';
-
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { useCartStore } from "../stores/cart-store";
+import { useAuthStore } from "../stores/auth-store";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { useToast } from "../contexts/ToastContext";
+import { orderApi } from "../services/order.api";
+import { paymentApi } from "../services/payment.api";
+import type { LiqPayConfig } from "../services/payment.api";
+import type { CreateOrderData } from "../services/order.api";
 
 interface CheckoutFormData {
   firstName: string;
@@ -21,8 +19,8 @@ interface CheckoutFormData {
   address: string;
   city: string;
   postalCode: string;
-  paymentMethod: 'card' | 'cash' | 'liqpay';
-  deliveryMethod: 'nova-poshta' | 'ukr-poshta' | 'courier';
+  paymentMethod: "card" | "cash" | "liqpay";
+  deliveryMethod: "nova-poshta" | "ukr-poshta" | "courier";
   notes?: string;
 }
 
@@ -34,35 +32,42 @@ export const CheckoutPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [liqPayConfig, setLiqPayConfig] = useState<LiqPayConfig | null>(null);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, watch } = useForm<CheckoutFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    watch,
+  } = useForm<CheckoutFormData>({
     defaultValues: {
-      firstName: user?.name?.split(' ')[0] || '',
-      lastName: user?.name?.split(' ')[1] || '',
-      email: user?.email || '',
-      phone: '',
-      address: '',
-      city: '',
-      postalCode: '',
-      paymentMethod: 'card',
-      deliveryMethod: 'nova-poshta'
-    }
+      firstName: user?.name?.split(" ")[0] || "",
+      lastName: user?.name?.split(" ")[1] || "",
+      email: user?.email || "",
+      phone: "",
+      address: "",
+      city: "",
+      postalCode: "",
+      paymentMethod: "card",
+      deliveryMethod: "nova-poshta",
+    },
   });
 
-  const selectedPaymentMethod = watch('paymentMethod');
-  const deliveryCost = watch('deliveryMethod') === 'courier' ? 100 : 50;
+  const selectedPaymentMethod = watch("paymentMethod");
+  const deliveryCost = watch("deliveryMethod") === "courier" ? 100 : 50;
   const totalWithDelivery = cart.total + deliveryCost;
 
-  
   const createOrder = async (formData: CheckoutFormData): Promise<string> => {
     const orderData: CreateOrderData = {
-      items: cart.items.map(item => ({
+      items: cart.items.map((item) => ({
         productId: item.product.id,
         name: item.product.name,
-        price: item.product.price,
+        price: item.priceAtAdd,
         quantity: item.quantity,
         size: item.selectedSize,
         color: item.selectedColor,
-        image: getFirstImage(item.product.images)
+        image:
+          item.product.image ||
+          item.product.images?.[0] ||
+          "/images/placeholder.jpg",
       })),
       shippingAddress: {
         firstName: formData.firstName,
@@ -71,38 +76,35 @@ export const CheckoutPage: React.FC = () => {
         phone: formData.phone,
         address: formData.address,
         city: formData.city,
-        postalCode: formData.postalCode
+        postalCode: formData.postalCode,
       },
       deliveryMethod: formData.deliveryMethod,
       paymentMethod: formData.paymentMethod,
       total: totalWithDelivery,
-      notes: formData.notes
+      notes: formData.notes,
     };
 
     const response = await orderApi.create(orderData);
     return response.order.id;
   };
 
-  
   const handleLiqPayPayment = async (orderId: string, amount: number) => {
     try {
       const response = await paymentApi.createLiqPayPayment(
         orderId,
         amount,
-        `Оплата замовлення #${orderId}`
+        `Оплата замовлення #${orderId}`,
       );
-      
+
       setLiqPayConfig(response);
-      
-      
+
       setTimeout(() => {
-        const form = document.getElementById('liqpay-form') as HTMLFormElement;
+        const form = document.getElementById("liqpay-form") as HTMLFormElement;
         if (form) form.submit();
       }, 100);
-      
     } catch (error: any) {
-      console.error('LiqPay payment error:', error);
-      showToast('Помилка створення оплати', 'error');
+      console.error("LiqPay payment error:", error);
+      showToast("Помилка створення оплати", "error");
       setIsProcessing(false);
       throw error;
     }
@@ -110,60 +112,61 @@ export const CheckoutPage: React.FC = () => {
 
   const onSubmit = async (formData: CheckoutFormData) => {
     if (cart.items.length === 0) {
-      showToast('Кошик порожній', 'error');
+      showToast("Кошик порожній", "error");
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      
       const orderId = await createOrder(formData);
-      showToast('Замовлення створено!', 'success');
+      showToast("Замовлення створено!", "success");
 
-      
-      if (formData.paymentMethod === 'liqpay') {
-        
+      if (formData.paymentMethod === "liqpay") {
         await handleLiqPayPayment(orderId, totalWithDelivery);
-      } else if (formData.paymentMethod === 'cash') {
-        
-        showToast('Замовлення створено! Оплата при отриманні.', 'success');
+      } else if (formData.paymentMethod === "cash") {
+        showToast("Замовлення створено! Оплата при отриманні.", "success");
         clearCart();
         navigate(`/order-success/${orderId}`);
       } else {
-        
-        showToast('Замовлення створено!', 'success');
+        showToast("Замовлення створено!", "success");
         clearCart();
         navigate(`/order-success/${orderId}`);
       }
-
     } catch (error: any) {
-      console.error('Checkout error:', error);
-      showToast(error.message || 'Помилка оформлення замовлення', 'error');
+      console.error("Checkout error:", error);
+      showToast(error.message || "Помилка оформлення замовлення", "error");
       setIsProcessing(false);
     }
   };
 
-  
   if (liqPayConfig) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Перенаправлення на оплату...</h2>
-          <p className="text-gray-600 mb-8">Будь ласка, зачекайте, відкривається сторінка оплати</p>
-          
+          <h2 className="text-2xl font-bold mb-4">
+            Перенаправлення на оплату...
+          </h2>
+          <p className="text-gray-600 mb-8">
+            Будь ласка, зачекайте, відкривається сторінка оплати
+          </p>
+
           {/* Прихована форма LiqPay */}
-          <form 
+          <form
             id="liqpay-form"
-            method="POST" 
-            action="https://www.liqpay.ua/api/3/checkout" 
+            method="POST"
+            action="https://www.liqpay.ua/api/3/checkout"
             acceptCharset="utf-8"
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
           >
             <input type="hidden" name="data" value={liqPayConfig.data} />
-            <input type="hidden" name="signature" value={liqPayConfig.signature} />
+            <input
+              type="hidden"
+              name="signature"
+              value={liqPayConfig.signature}
+            />
           </form>
-          
+
           <div className="animate-pulse">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full mx-auto animate-spin"></div>
           </div>
@@ -178,15 +181,25 @@ export const CheckoutPage: React.FC = () => {
         {/* Хлібні крихти */}
         <nav className="mb-8">
           <ol className="flex items-center space-x-2 text-sm text-gray-500">
-            <li><Link to="/" className="hover:text-gray-700">Головна</Link></li>
+            <li>
+              <Link to="/" className="hover:text-gray-700">
+                Головна
+              </Link>
+            </li>
             <li>/</li>
-            <li><Link to="/cart" className="hover:text-gray-700">Кошик</Link></li>
+            <li>
+              <Link to="/cart" className="hover:text-gray-700">
+                Кошик
+              </Link>
+            </li>
             <li>/</li>
             <li className="text-gray-900 font-medium">Оформлення</li>
           </ol>
         </nav>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Оформлення замовлення</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+          Оформлення замовлення
+        </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Форма замовлення */}
@@ -201,12 +214,14 @@ export const CheckoutPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Ім'я *"
-                      {...register('firstName', { required: "Введіть ім'я" })}
+                      {...register("firstName", { required: "Введіть ім'я" })}
                       error={errors.firstName?.message}
                     />
                     <Input
                       label="Прізвище *"
-                      {...register('lastName', { required: 'Введіть прізвище' })}
+                      {...register("lastName", {
+                        required: "Введіть прізвище",
+                      })}
                       error={errors.lastName?.message}
                     />
                   </div>
@@ -215,23 +230,23 @@ export const CheckoutPage: React.FC = () => {
                     <Input
                       label="Email *"
                       type="email"
-                      {...register('email', { 
-                        required: 'Введіть email',
+                      {...register("email", {
+                        required: "Введіть email",
                         pattern: {
                           value: /^\S+@\S+\.\S+$/,
-                          message: 'Невірний формат email'
-                        }
+                          message: "Невірний формат email",
+                        },
                       })}
                       error={errors.email?.message}
                     />
                     <Input
                       label="Телефон *"
-                      {...register('phone', { 
-                        required: 'Введіть телефон',
+                      {...register("phone", {
+                        required: "Введіть телефон",
                         pattern: {
                           value: /^[\+]?[0-9\s\-\(\)]{10,}$/,
-                          message: 'Невірний формат телефону'
-                        }
+                          message: "Невірний формат телефону",
+                        },
                       })}
                       error={errors.phone?.message}
                     />
@@ -246,19 +261,19 @@ export const CheckoutPage: React.FC = () => {
                   <Input
                     label="Адреса *"
                     placeholder="Вулиця, будинок, квартира"
-                    {...register('address', { required: 'Введіть адресу' })}
+                    {...register("address", { required: "Введіть адресу" })}
                     error={errors.address?.message}
                   />
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <Input
                       label="Місто *"
-                      {...register('city', { required: 'Введіть місто' })}
+                      {...register("city", { required: "Введіть місто" })}
                       error={errors.city?.message}
                     />
                     <Input
                       label="Поштовий індекс"
-                      {...register('postalCode')}
+                      {...register("postalCode")}
                       error={errors.postalCode?.message}
                     />
                   </div>
@@ -274,38 +289,44 @@ export const CheckoutPage: React.FC = () => {
                       <input
                         type="radio"
                         value="nova-poshta"
-                        {...register('deliveryMethod')}
+                        {...register("deliveryMethod")}
                         className="h-4 w-4 text-blue-600"
                       />
                       <div className="ml-3">
                         <span className="font-medium">Нова Пошта</span>
-                        <p className="text-sm text-gray-500">Відділення або поштомат • 50 грн • 1-3 дні</p>
+                        <p className="text-sm text-gray-500">
+                          Відділення або поштомат • 50 грн • 1-3 дні
+                        </p>
                       </div>
                     </label>
-                    
+
                     <label className="flex items-center p-4 border border-gray-300 rounded-lg hover:border-blue-500 cursor-pointer">
                       <input
                         type="radio"
                         value="ukr-poshta"
-                        {...register('deliveryMethod')}
+                        {...register("deliveryMethod")}
                         className="h-4 w-4 text-blue-600"
                       />
                       <div className="ml-3">
                         <span className="font-medium">Укрпошта</span>
-                        <p className="text-sm text-gray-500">Відділення • 40 грн • 3-7 днів</p>
+                        <p className="text-sm text-gray-500">
+                          Відділення • 40 грн • 3-7 днів
+                        </p>
                       </div>
                     </label>
-                    
+
                     <label className="flex items-center p-4 border border-gray-300 rounded-lg hover:border-blue-500 cursor-pointer">
                       <input
                         type="radio"
                         value="courier"
-                        {...register('deliveryMethod')}
+                        {...register("deliveryMethod")}
                         className="h-4 w-4 text-blue-600"
                       />
                       <div className="ml-3">
                         <span className="font-medium">Кур'єр</span>
-                        <p className="text-sm text-gray-500">Адресна доставка • 100 грн • 1-2 дні</p>
+                        <p className="text-sm text-gray-500">
+                          Адресна доставка • 100 грн • 1-2 дні
+                        </p>
                       </div>
                     </label>
                   </div>
@@ -321,38 +342,46 @@ export const CheckoutPage: React.FC = () => {
                       <input
                         type="radio"
                         value="card"
-                        {...register('paymentMethod')}
+                        {...register("paymentMethod")}
                         className="h-4 w-4 text-blue-600"
                       />
                       <div className="ml-3">
                         <span className="font-medium">Банківська карта</span>
-                        <p className="text-sm text-gray-500">Visa, Mastercard • Миттєва оплата</p>
+                        <p className="text-sm text-gray-500">
+                          Visa, Mastercard • Миттєва оплата
+                        </p>
                       </div>
                     </label>
-                    
+
                     <label className="flex items-center p-4 border border-gray-300 rounded-lg hover:border-blue-500 cursor-pointer">
                       <input
                         type="radio"
                         value="liqpay"
-                        {...register('paymentMethod')}
+                        {...register("paymentMethod")}
                         className="h-4 w-4 text-blue-600"
                       />
                       <div className="ml-3">
                         <span className="font-medium">LiqPay</span>
-                        <p className="text-sm text-gray-500">Карта, Google Pay, Apple Pay • Комісія 2.75%</p>
+                        <p className="text-sm text-gray-500">
+                          Карта, Google Pay, Apple Pay • Комісія 2.75%
+                        </p>
                       </div>
                     </label>
-                    
+
                     <label className="flex items-center p-4 border border-gray-300 rounded-lg hover:border-blue-500 cursor-pointer">
                       <input
                         type="radio"
                         value="cash"
-                        {...register('paymentMethod')}
+                        {...register("paymentMethod")}
                         className="h-4 w-4 text-blue-600"
                       />
                       <div className="ml-3">
-                        <span className="font-medium">Готівка при отриманні</span>
-                        <p className="text-sm text-gray-500">Оплата кур'єру або в відділенні</p>
+                        <span className="font-medium">
+                          Готівка при отриманні
+                        </span>
+                        <p className="text-sm text-gray-500">
+                          Оплата кур'єру або в відділенні
+                        </p>
                       </div>
                     </label>
                   </div>
@@ -364,7 +393,7 @@ export const CheckoutPage: React.FC = () => {
                     Додаткова інформація
                   </h2>
                   <textarea
-                    {...register('notes')}
+                    {...register("notes")}
                     placeholder="Коментар до замовлення (необов'язково)"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[100px]"
                     rows={3}
@@ -373,12 +402,14 @@ export const CheckoutPage: React.FC = () => {
 
                 <Button
                   type="submit"
-                  disabled={isSubmitting || isProcessing || cart.items.length === 0}
+                  disabled={
+                    isSubmitting || isProcessing || cart.items.length === 0
+                  }
                   className="w-full py-4 text-lg font-medium"
                   size="lg"
                 >
-                  {isProcessing || isSubmitting 
-                    ? 'Обробка замовлення...' 
+                  {isProcessing || isSubmitting
+                    ? "Обробка замовлення..."
                     : `Замовити за ${totalWithDelivery} грн`}
                 </Button>
               </form>
@@ -389,13 +420,16 @@ export const CheckoutPage: React.FC = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm p-6 sticky top-8">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
-                Ваше замовлення ({cart.itemCount} товар{cart.itemCount !== 1 ? 'и' : ''})
+                Ваше замовлення ({cart.itemCount} товар
+                {cart.itemCount !== 1 ? "и" : ""})
               </h2>
-              
+
               <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {cart.items.map((item) => (
-                  <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`} 
-                       className="flex gap-3 pb-4 border-b border-gray-100 last:border-0">
+                  <div
+                    key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`}
+                    className="flex gap-3 pb-4 border-b border-gray-100 last:border-0"
+                  >
                     <div className="flex-shrink-0 w-16 h-16">
                       <img
                         src={item.product.image}
@@ -428,27 +462,30 @@ export const CheckoutPage: React.FC = () => {
                   <span>Товари:</span>
                   <span>{cart.total} грн</span>
                 </div>
-                
+
                 <div className="flex justify-between text-gray-600">
                   <span>Доставка:</span>
                   <span>{deliveryCost} грн</span>
                 </div>
-                
-                {selectedPaymentMethod === 'liqpay' && (
+
+                {selectedPaymentMethod === "liqpay" && (
                   <div className="flex justify-between text-gray-600">
                     <span>Комісія LiqPay (2.75%):</span>
-                    <span className="text-red-600">+{(totalWithDelivery * 0.0275).toFixed(0)} грн</span>
+                    <span className="text-red-600">
+                      +{(totalWithDelivery * 0.0275).toFixed(0)} грн
+                    </span>
                   </div>
                 )}
-                
+
                 <hr className="border-gray-200 my-2" />
-                
+
                 <div className="flex justify-between text-xl font-bold text-gray-900">
                   <span>Загальна сума:</span>
                   <span>
-                    {selectedPaymentMethod === 'liqpay' 
-                      ? (totalWithDelivery * 1.0275).toFixed(0) 
-                      : totalWithDelivery} грн
+                    {selectedPaymentMethod === "liqpay"
+                      ? (totalWithDelivery * 1.0275).toFixed(0)
+                      : totalWithDelivery}{" "}
+                    грн
                   </span>
                 </div>
               </div>
