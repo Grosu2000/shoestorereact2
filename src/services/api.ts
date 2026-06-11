@@ -61,17 +61,13 @@ const createHeaders = (isFormData: boolean = false): HeadersInit => {
 };
 
 const normalizeEndpoint = (endpoint: string): string => {
-  // Если endpoint уже начинается с /api/, оставляем как есть
   if (endpoint.startsWith('/api/')) {
     return endpoint;
   }
   
-  // Если endpoint начинается с /, но не с /api/, добавляем /api
   if (endpoint.startsWith('/')) {
     return `/api${endpoint}`;
   }
-  
-  // Если endpoint без слеша в начале
   return `/api/${endpoint}`;
 };
 
@@ -80,7 +76,7 @@ const api = {
     const normalizedEndpoint = normalizeEndpoint(endpoint);
     const url = `${API_URL}${normalizedEndpoint}`;
     
-    console.log(`[API GET] ${url}`); // Для отладки
+    console.log(`[API GET] ${url}`);
     
     const headers = createHeaders(false);
     
@@ -96,7 +92,7 @@ const api = {
     const normalizedEndpoint = normalizeEndpoint(endpoint);
     const url = `${API_URL}${normalizedEndpoint}`;
     
-    console.log(`[API POST] ${url}`, data); // Для отладки
+    console.log(`[API POST] ${url}`, data);
     
     const isFormData = data instanceof FormData;
     const headers = createHeaders(isFormData);
@@ -119,7 +115,7 @@ const api = {
     const normalizedEndpoint = normalizeEndpoint(endpoint);
     const url = `${API_URL}${normalizedEndpoint}`;
     
-    console.log(`[API PUT] ${url}`, data); // Для отладки
+    console.log(`[API PUT] ${url}`, data);
     
     const isFormData = data instanceof FormData;
     const headers = createHeaders(isFormData);
@@ -142,7 +138,7 @@ const api = {
     const normalizedEndpoint = normalizeEndpoint(endpoint);
     const url = `${API_URL}${normalizedEndpoint}`;
     
-    console.log(`[API DELETE] ${url}`, data); // Для отладки
+    console.log(`[API DELETE] ${url}`, data);
     
     const headers = createHeaders(false);
     
@@ -157,17 +153,14 @@ const api = {
   },
 };
 
-// ✅ Дополнительные методы для удобства
 export const apiService = {
-  // Auth
   register: (data: any) => api.post('/auth/register', data),
   login: (data: any) => api.post('/auth/login', data),
   logout: () => api.post('/auth/logout'),
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (data: any) => api.put('/auth/profile', data),
-  changePassword: (data: any) => api.put('/auth/change-password', data), // ✅ ДОБАВЛЕНО
-  getMe: () => api.get('/auth/me'), // ✅ ДОБАВЛЕНО
-  
+  changePassword: (data: any) => api.put('/auth/change-password', data),
+  getMe: () => api.get('/auth/me'),
   // Products
   getProducts: () => api.get('/products'),
   getProduct: (slug: string) => api.get(`/products/${slug}`),

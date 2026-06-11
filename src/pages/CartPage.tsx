@@ -179,7 +179,6 @@ export const CartPage: React.FC = () => {
                           {item.quantity > 1 && (
                             <div className="text-sm text-text/50">
                               {Math.floor(item.priceAtAdd * item.quantity)} грн
-                  
                             </div>
                           )}
                         </div>
@@ -210,11 +209,9 @@ export const CartPage: React.FC = () => {
                                   >
                                     -
                                   </button>
-
                                   <span className="w-10 text-center font-medium">
                                     {item.quantity}
                                   </span>
-
                                   <button
                                     onClick={() =>
                                       handleQuantityChange(
@@ -223,7 +220,12 @@ export const CartPage: React.FC = () => {
                                       )
                                     }
                                     className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded-r-lg transition disabled:opacity-50"
-                                    disabled={item.quantity >= maxAvailable}
+                                    disabled={
+                                      item.quantity >=
+                                      (item.product.sizeColorMatrix?.[
+                                        item.selectedSize
+                                      ]?.[item.selectedColor] || 0)
+                                    }
                                   >
                                     +
                                   </button>

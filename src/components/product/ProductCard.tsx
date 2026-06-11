@@ -2,6 +2,7 @@ import React from "react";
 import type { Product } from "../../types/product";
 import { useCartStore } from "../../stores/cart-store";
 import { useWishlist } from "../../hooks/useWishlist";
+import { useCompareStore } from "../../stores/compare-store";
 import { useAuthStore } from "../../stores/auth-store";
 import { useToast } from "../../contexts/ToastContext";
 import { Link } from "react-router-dom";
@@ -16,12 +17,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { user } = useAuthStore();
   const addItem = useCartStore((state) => state.addItem);
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { addItem: addToCompare, removeItem: removeFromCompare, isInCompare, getItemsCount } = useCompareStore();
 
   const images = product.images?.length
     ? product.images
     : ["/images/placeholder.jpg"];
 
-  // Використовуємо sizeColorMatrix для підрахунку загальної кількості
   const sizeColorMatrix = product.sizeColorMatrix || {};
 
   let totalStock = 0;
@@ -31,10 +32,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     });
   });
 
-  const inStock =
-    product.inStock !== undefined ? product.inStock : totalStock > 0;
+  const inStock = product.inStock !== undefined ? product.inStock : totalStock > 0;
 
-  // Отримуємо перший доступний розмір та колір для кнопки (якщо є)
   const firstSize = Object.keys(sizeColorMatrix)[0] || "";
   const firstColor = firstSize
     ? Object.keys(sizeColorMatrix[firstSize] || {})[0]
@@ -55,6 +54,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     : false;
 
   const isWishlisted = isInWishlist(product.id);
+  const isCompared = isInCompare(product.id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -85,6 +85,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isCompared) {
+      removeFromCompare(product.id);
+      showToast("Товар видалено з порівняння", "info");
+    } else {
+      if (getItemsCount() >= 4) {
+        showToast("Можна порівнювати не більше 4 товарів", "error");
+        return;
+      }
+      addToCompare(product);
+      showToast("Товар додано до порівняння", "success");
+    }
+  };
+
   const displaySizes = Object.keys(sizeColorMatrix).slice(0, 3);
 
   const discountPercent = product.discountPercent || 0;
@@ -110,7 +127,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           )}
         </div>
 
-        {/* КНОПКА WISHLIST */}
+        {/* КНОПКА ПОРІВНЯННЯ (зліва, під бейджами) */}
+        <button
+          onClick={handleCompare}
+          className="absolute top-3 left-20 z-10 bg-white rounded-full p-2 shadow-md hover:scale-110 transition-all duration-200"
+          title="Порівняти"
+        >
+          <svg
+            className={`w-5 h-5 ${isCompared ? "text-button" : "text-gray-500"}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.8}
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+            />
+          </svg>
+        </button>
+
+        {/* КНОПКА WISHLIST (справа) */}
         <button
           onClick={handleWishlist}
           className="absolute top-3 right-3 z-10 bg-white rounded-full p-2 shadow-md hover:scale-110 transition-all duration-200"
@@ -219,7 +257,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             )}
           </div>
 
-          {/* КНОПКА */}
+          {/* КНОПКА ДОДАТИ В КОШИК */}
           <button
             onClick={handleAddToCart}
             disabled={!inStock || !finalSize}

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../ui/Button";
 import { useAuthStore } from "../../stores/auth-store";
+import { useCompareStore } from "../../stores/compare-store";
 
 interface HeaderProps {
   cartItemCount?: number;
@@ -13,6 +14,7 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const compareCount = useCompareStore((state) => state.getItemsCount());
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -41,12 +43,10 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
       <header className="sticky top-0 z-50 bg-white border-b border-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 md:h-20">
-            {/* Логотип */}
             <Link to="/" className="text-2xl font-bold text-text hover:opacity-80 transition">
               STEP
             </Link>
 
-            {/* Десктопна навігація */}
             <nav className="hidden md:flex items-center space-x-8">
               <Link to="/" className={`text-text font-medium hover:text-button transition ${location.pathname === '/' ? 'text-button' : ''}`}>
                 Головна
@@ -64,9 +64,7 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
               )}
             </nav>
 
-            {/* Десктопна права панель */}
             <div className="hidden md:flex items-center space-x-6">
-              {/* Пошук */}
               <div className="relative">
                 <input
                   type="text"
@@ -86,7 +84,19 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                 </button>
               </div>
 
-              {/* Кошик */}
+              {/* ПОРІВНЯННЯ */}
+              <Link to="/compare" className="relative p-1 hover:text-button transition">
+                <svg className="w-5 h-5 text-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                {compareCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-button text-text text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-sm">
+                    {compareCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* КОШИК */}
               <Link to="/cart" className="relative p-1 hover:text-button transition">
                 <svg className="w-5 h-5 text-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4z" />
@@ -98,23 +108,20 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                 )}
               </Link>
 
-              {/* Wishlist */}
+              {/* WISHLIST */}
               <Link to="/wishlist" className="p-1 hover:text-button transition">
                 <svg className="w-5 h-5 text-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </Link>
 
-              {/* Авторизація */}
               {user ? (
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-text/70">{user.name?.split(' ')[0]}</span>
                   <Link to="/profile">
                     <Button variant="outline" size="sm" className="py-1 px-3 text-sm">Профіль</Button>
                   </Link>
-                  <Button variant="outline" size="sm" onClick={handleLogout} className="py-1 px-3 text-sm">
-                    Вийти
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleLogout} className="py-1 px-3 text-sm">Вийти</Button>
                 </div>
               ) : (
                 <Link to="/login">
@@ -123,7 +130,6 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
               )}
             </div>
 
-            {/* Кнопка гамбургер-меню */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden p-2 rounded-lg hover:bg-accent transition"
@@ -141,7 +147,6 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
         </div>
       </header>
 
-      {/* Мобільне меню */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-white pt-20 px-6">
           <div className="flex flex-col space-y-6">
@@ -169,6 +174,9 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
               {user?.role === "ADMIN" && (
                 <Link to="/admin" onClick={closeMenu} className="text-lg font-medium py-2 border-b border-accent">Адмінка</Link>
               )}
+              <Link to="/compare" onClick={closeMenu} className="text-lg font-medium py-2 border-b border-accent">
+                Порівняння {compareCount > 0 && `(${compareCount})`}
+              </Link>
               <Link to="/wishlist" onClick={closeMenu} className="text-lg font-medium py-2 border-b border-accent">Бажання</Link>
               <Link to="/cart" onClick={closeMenu} className="text-lg font-medium py-2 border-b border-accent">
                 Кошик {cartItemCount > 0 && `(${cartItemCount})`}

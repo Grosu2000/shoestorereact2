@@ -14,12 +14,10 @@ export const ProductPage: React.FC = () => {
 
   const { data: products, isLoading, refetch } = useProducts({ category, brand, search });
 
-  // Оновлення при зміні параметрів
   useEffect(() => {
     refetch();
   }, [category, brand, search, refetch]);
 
-  // Слухаємо подію оновлення з localStorage (між вкладками)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'products-updated') {
